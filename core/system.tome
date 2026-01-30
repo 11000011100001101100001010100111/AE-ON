@@ -1,0 +1,113 @@
+import os
+import sys
+import re
+import importlib.util
+from importlib.machinery import SourceFileLoader
+from datetime import datetime
+
+# Æ-ON | D.A.T.A. Protocol
+# Core Lattice Logic [SYSTEM_TOME]
+
+class AeonLattice:
+    def __init__(self):
+        self.root_path = os.path.expanduser("~/AE-ON")
+        self.identity = self._parse_cladding()
+        self.vitals = {"status": "NOMINAL", "battery": 100}
+        
+        # LINK: Load the Periodic Table
+        self.periodic = self._load_tome_module("periodic")
+
+    def _load_tome_module(self, tome_name):
+        """
+        Proprietary Loader: Forces import of .tome files.
+        """
+        try:
+            tome_path = os.path.join(self.root_path, "core", f"{tome_name}.tome")
+            
+            if not os.path.exists(tome_path):
+                print(f"!! MISSING TOME: {tome_path}")
+                return None
+            
+            # FORCE LOADER: Treat .tome as Source Code
+            loader = SourceFileLoader(tome_name, tome_path)
+            spec = importlib.util.spec_from_loader(tome_name, loader)
+            module = importlib.util.module_from_spec(spec)
+            
+            sys.modules[tome_name] = module
+            loader.exec_module(module)
+            
+            return module
+        except Exception as e:
+            print(f"!! SYNAPTIC FAILURE [{tome_name}]: {e}")
+            return None
+
+    def _parse_cladding(self):
+        config = {}
+        gem_path = os.path.join(self.root_path, "refract.gem")
+        
+        if not os.path.exists(gem_path):
+            return {"ERROR": "CLADDING_MISSING"}
+
+        try:
+            with open(gem_path, "r") as f:
+                content = f.read()
+                
+            patterns = {
+                "soft_shutdown": r"SOFT_SHUTDOWN_THRESHOLD:\s*(\d+)%",
+                "primary_color": r"PRIMARY_COLOR:\s*(@[\w-]+)",
+                "designation": r"DESIGNATION:\s*([\w_]+)"
+            }
+            
+            for key, regex in patterns.items():
+                match = re.search(regex, content)
+                if match:
+                    config[key] = match.group(1)
+            
+            if "soft_shutdown" in config:
+                config["soft_shutdown"] = int(config["soft_shutdown"])
+                
+            return config
+        except Exception as e:
+            return {"ERROR": str(e)}
+
+    def check_vitals(self):
+        try:
+            bat_path = "/sys/class/power_supply/battery/capacity"
+            if os.path.exists(bat_path):
+                with open(bat_path, "r") as f:
+                    level = int(f.read().strip())
+                self.vitals["battery"] = level
+                
+                limit = self.identity.get("soft_shutdown", 8)
+                if level <= limit:
+                    return {
+                        "alert": "CRITICAL",
+                        "msg": f"SOFT SHUTDOWN TRIGGERED [{level}% <= {limit}%]"
+                    }
+            return {"alert": "GREEN", "msg": "SYSTEM NOMINAL"}
+        except Exception:
+            return {"alert": "UNKNOWN", "msg": "NO BATTERY SENSOR"}
+
+    def get_atomic_time(self):
+        now = datetime.now()
+        day_of_year = now.timetuple().tm_yday
+        
+        atomic_no = (day_of_year % 118)
+        if atomic_no == 0: atomic_no = 118
+        
+        # Retrieve Symbol from Synaptic Link
+        if self.periodic:
+            element_abbr = self.periodic.get_symbol(atomic_no)
+        else:
+            element_abbr = "Er"
+
+        seconds_in_day = now.hour * 3600 + now.minute * 60 + now.second
+        total_seconds = 86400
+        cycle_float = (seconds_in_day / total_seconds) * 100
+        
+        return f"{element_abbr}[{atomic_no}].{day_of_year}.{cycle_float:.1f}"
+
+if __name__ == "__main__":
+    lattice = AeonLattice()
+    print(f"Identity: {lattice.identity}")
+    print(f"Time:     {lattice.get_atomic_time()}")

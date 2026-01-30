@@ -1,0 +1,41 @@
+import re
+import hashlib
+
+# Æ-ON | D.A.T.A. Protocol
+# CycleDelta Cryptography [CORE_LOGIC]
+
+class DeltaCipher:
+    def __init__(self):
+        # 8-Char Unicode Base for Filenames
+        self.glyph_map = "ÆØÅß∂∆π∑Ωµ" 
+
+    def compute_delta(self, atomic_time_str):
+        """
+        Parses 'Zn[30].30.54.6' to calculate the shifting Delta.
+        """
+        pattern = r"\[(\d+)\]\.(\d+)\.([\d\.]+)"
+        match = re.search(pattern, atomic_time_str)
+        
+        if not match: return 0.0
+
+        atomic_no = int(match.group(1))
+        day_of_year = int(match.group(2))
+        cycle_float = float(match.group(3))
+
+        # The Delta: A shifting value based on Time/Matter
+        return (atomic_no * cycle_float) + day_of_year
+
+    def generate_uid(self, delta_val):
+        """
+        Generates the [8-Unicode-Chars].song filename.
+        """
+        # Hash the delta to get entropy
+        raw_hash = hashlib.sha256(str(delta_val).encode()).hexdigest()
+        
+        # Map first 8 nibbles to our Glyph Map
+        uid = ""
+        for i in range(8):
+            index = int(raw_hash[i], 16) % len(self.glyph_map)
+            uid += self.glyph_map[index]
+            
+        return uid

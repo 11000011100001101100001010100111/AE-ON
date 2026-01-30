@@ -1,0 +1,101 @@
+import curses
+import time
+import os
+import struct
+
+# Æ-ON | D.A.T.A. Protocol
+# Visual Interface Shell [NEXUS_STRATUM v0.2]
+
+def ignite(lattice):
+    curses.wrapper(_main_loop, lattice)
+
+def _scan_dmz(root_path):
+    """
+    Scans birdsong/ for the most recent artifact.
+    Returns (UID, GateFreq) or None.
+    """
+    chamber = os.path.join(root_path, "birdsong")
+    if not os.path.exists(chamber):
+        return "NO_CHAMBER", 0
+
+    files = [f for f in os.listdir(chamber) if f.endswith('.song')]
+    if not files:
+        return "SILENCE", 0
+    
+    # Get latest file
+    latest_file = max([os.path.join(chamber, f) for f in files], key=os.path.getctime)
+    filename = os.path.basename(latest_file)
+    uid = filename.replace(".song", "")
+    
+    # Parse Gate Freq (Bytes 9-10 are Silence/Gate)
+    try:
+        with open(latest_file, "rb") as f:
+            data = f.read()
+            # Structure: [4:Composer][4:User][2:Gate][Variable:Payload]
+            if len(data) >= 10:
+                gate_bytes = data[8:10]
+                gate_freq = struct.unpack(">H", gate_bytes)[0]
+                return uid, gate_freq
+    except:
+        pass
+        
+    return uid, "??"
+
+def _main_loop(stdscr, lattice):
+    curses.start_color()
+    curses.use_default_colors()
+    curses.curs_set(0)
+
+    # PALETTE: 1=Crimson, 2=Silver, 3=Brass
+    curses.init_pair(1, curses.COLOR_RED, -1)
+    curses.init_pair(2, curses.COLOR_WHITE, -1)
+    curses.init_pair(3, curses.COLOR_YELLOW, -1)
+
+    while True:
+        stdscr.clear()
+        h, w = stdscr.getmaxyx()
+
+        # 1. ACQUIRE DATA
+        vitals = lattice.check_vitals()
+        atomic_time = lattice.get_atomic_time()
+        identity = lattice.identity.get("designation", "UNKNOWN")
+        
+        # 2. SCAN BIRDSONG DMZ
+        last_chirp, gate_freq = _scan_dmz(lattice.root_path)
+
+        # 3. RENDER HEADER (Crimson)
+        header = f"Æ-ON | {identity} | {atomic_time}"
+        stdscr.attron(curses.color_pair(1) | curses.A_BOLD)
+        stdscr.addstr(0, 1, header)
+        stdscr.attroff(curses.color_pair(1) | curses.A_BOLD)
+        
+        stdscr.attron(curses.color_pair(2))
+        stdscr.hline(1, 0, curses.ACS_HLINE, w)
+        stdscr.attroff(curses.color_pair(2))
+
+        # 4. RENDER VITALS (Silver)
+        bat_msg = f"ENERGY: {vitals.get('battery', '??')}%"
+        status_msg = vitals.get('msg', 'NOMINAL')
+        color = curses.color_pair(1) if vitals.get('alert') == 'CRITICAL' else curses.color_pair(2)
+
+        stdscr.addstr(3, 1, bat_msg, color)
+        stdscr.addstr(3, 20, f"STATUS: {status_msg}", color)
+
+        # 5. RENDER BIRDSONG DATA (Brass)
+        # This is the "Ear" of the Nexus
+        stdscr.attron(curses.color_pair(3))
+        stdscr.addstr(5, 1, ">> PHILOTIC MONITOR:")
+        stdscr.addstr(6, 4, f"LAST CHIRP: {last_chirp}")
+        stdscr.addstr(7, 4, f"GATE FREQ : {gate_freq} Hz")
+        stdscr.attroff(curses.color_pair(3))
+
+        # 6. FOOTER
+        stdscr.attron(curses.color_pair(2))
+        stdscr.addstr(h-2, 1, "[CTRL+C] HALT  |  [WAITING FOR SIGNAL]")
+        stdscr.attroff(curses.color_pair(2))
+
+        stdscr.refresh()
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break

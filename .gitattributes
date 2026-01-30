@@ -1,0 +1,7 @@
+*.gem   diff=text
+*.tome  diff=text
+*.cam   diff=text
+*.nxs   diff=text
+*.met   diff=text
+*.void  diff=text
+*.song  binary

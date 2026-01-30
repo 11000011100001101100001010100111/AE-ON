@@ -1,0 +1,47 @@
+import os
+import struct
+
+# Æ-ON | D.A.T.A. Protocol
+# Structured Artifact Composer [BIRDSONG_PROTOCOL]
+
+class AvianComposer:
+    def __init__(self, root_path):
+        self.chamber = os.path.join(root_path, "birdsong")
+        if not os.path.exists(self.chamber):
+            os.makedirs(self.chamber)
+
+    def compose(self, composer_id, user_id, gate_freq, txrx_payload):
+        """
+        Assembles the 4-Part 'Singable' Artifact.
+        Structure: [COMPOSER] [USER] [SILENCE] [TXRX]
+        """
+        # 1. COMPOSER (4 Bytes) - Origin System ID
+        part_1 = composer_id[:4].encode('utf-8').ljust(4, b'\x00')
+        
+        # 2. USER (4 Bytes) - Identity/Operator
+        part_2 = user_id[:4].encode('utf-8').ljust(4, b'\x00')
+        
+        # 3. SILENCE (2 Bytes) - The Active Void
+        # This is the "Noise Gate" or Carrier Frequency (e.g., 118 for WNT)
+        # It defines the "Bistream Opportunity" range.
+        part_3 = struct.pack(">H", int(gate_freq))
+        
+        # 4. TXRX (Variable) - The Payload
+        # "Singable" constraint: Keep it lightweight.
+        part_4 = str(txrx_payload).encode('utf-8')[:16]
+        
+        return part_1 + part_2 + part_3 + part_4
+
+    def release_bird(self, filename_uid, song_data):
+        """
+        Releases the .song artifact into the DMZ.
+        """
+        filename = f"{filename_uid}.song"
+        filepath = os.path.join(self.chamber, filename)
+        
+        try:
+            with open(filepath, "wb") as f:
+                f.write(song_data)
+            return filepath
+        except Exception as e:
+            return f"ERROR: {e}"
