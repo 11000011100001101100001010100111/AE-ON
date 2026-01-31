@@ -8,6 +8,7 @@ from datetime import datetime
 
 # IMPORT TOMES
 from core import system
+from core import gitter  # [NEW] The Diplomat
 from meteor import station
 
 class NexusShell:
@@ -21,10 +22,12 @@ class NexusShell:
         self.BRASS = "\033[33m"
         self.RESET = "\033[0m"
         self.CRIMSON = "\033[91m"
+        self.GREEN = "\033[32m"
         
         # Initialize
         self.sys_core = system.AeonLattice()
         self.wx_station = station.WeatherStation()
+        self.diplomat = gitter.Diplomat() # [NEW]
         
         # History
         self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
@@ -92,13 +95,42 @@ class NexusShell:
                         data = self.wx_station.slap_data()
                         sys.stdout.write("\033[1A\033[2K") 
                         print(f"{self.SILVER}>> {data}{self.RESET}")
-                    
-                    # [FIX] Added Help Command
+                        
+                    elif cmd == "save":
+                        # [NEW] The Diplomat Protocol
+                        changes = self.diplomat.get_status()
+                        if not changes:
+                            print(f"\n{self.SILVER}>> LATTICE CLEAN. NOTHING TO SAVE.{self.RESET}")
+                        else:
+                            print(f"\n{self.BRASS}>> CHANGES DETECTED:{self.RESET}")
+                            for c in changes:
+                                print(f"   {c}")
+                            
+                            # Ask for commit message (using input here is tricky due to threads)
+                            # For safety in this version, we pause the header update logic implicitly
+                            # by doing a blocking input in the main loop.
+                            pass # Just a marker, the input below handles it.
+
                     elif cmd == "help":
-                        print(f"\n{self.SILVER}cmds: sys, meteor, salud{self.RESET}")
+                        print(f"\n{self.SILVER}cmds: sys, meteor, save, salud{self.RESET}")
                         
                     elif cmd:
                         print(f"\n{self.RED}[!] UNKNOWN: {cmd}{self.RESET}")
+                
+                # [INTERACTIVE SAVE LOGIC]
+                # We handle the 'save' input OUTSIDE the lock to allow typing
+                if cmd == "save":
+                    changes = self.diplomat.get_status()
+                    if changes:
+                        msg = input(f"{self.CRIMSON}>> COMMIT MSG: {self.RESET}").strip()
+                        if msg:
+                            print(f"{self.SILVER}>> NEGOTIATING WITH THE VOID...{self.RESET}")
+                            result = self.diplomat.execute_save(msg)
+                            if result == "SECURE":
+                                print(f"{self.GREEN}>> SUCCESS. LATTICE SYNCED.{self.RESET}")
+                            else:
+                                print(f"{self.RED}>> ERROR: {result}{self.RESET}")
+
             except KeyboardInterrupt:
                 self.active = False
                 break

@@ -1,0 +1,51 @@
+import subprocess
+import sys
+
+class Diplomat:
+    def __init__(self):
+        self.branch = "genesis"
+
+    def run_cmd(self, args):
+        """
+        Executes a shell command and returns (success, output).
+        """
+        try:
+            result = subprocess.run(
+                args, capture_output=True, text=True, check=True
+            )
+            return True, result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            return False, e.stderr.strip()
+
+    def get_status(self):
+        """
+        Checks for modified files, ignoring untracked trash.
+        """
+        # --porcelain gives us a machine-readable format
+        success, output = self.run_cmd(["git", "status", "--porcelain"])
+        if not success:
+            return []
+        
+        # Filter empty lines
+        changes = [line for line in output.split("\n") if line.strip()]
+        return changes
+
+    def execute_save(self, message):
+        """
+        The Full Cycle: Add -> Commit -> Push
+        """
+        # 1. ADD (Stage all changes)
+        # Note: .gitignore now handles the trash, so 'git add .' is safe.
+        self.run_cmd(["git", "add", "."])
+        
+        # 2. COMMIT
+        success, out = self.run_cmd(["git", "commit", "-m", message])
+        if not success:
+            return f"COMMIT FAILED: {out}"
+            
+        # 3. PUSH
+        success, out = self.run_cmd(["git", "push", "origin", self.branch])
+        if not success:
+            return f"PUSH FAILED: {out}"
+            
+        return "SECURE"
