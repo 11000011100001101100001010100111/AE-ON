@@ -1,0 +1,10 @@
+class TalonEngine:
+    def __init__(self):
+        self.name_en = "Talon Alta MMA Engine"
+        self.name_jp = "高爪"
+        self.version = "v0.1.0 (Genesis)"
+        self.status = "IDLE"
+
+    def get_banner(self):
+        """Returns the formatted banner elements."""
+        return self.name_jp, self.name_en, self.version

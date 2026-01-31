@@ -10,7 +10,8 @@ from datetime import datetime
 from core import system
 from core import gitter
 from core import power
-from core import birdsong  # [NEW]
+from core import birdsong
+from core import talon     # [NEW]
 from meteor import station
 
 class NexusShell:
@@ -31,12 +32,13 @@ class NexusShell:
         self.wx_station = station.WeatherStation()
         self.diplomat = gitter.Diplomat()
         self.pwr_core = power.PowerCore()
-        
-        # [NEW] Initialize Birdsong (Crypto)
+        self.talon_eng = talon.TalonEngine() # [NEW]
+
+        # Crypto Check
         try:
             self.birdsong = birdsong.Birdsong()
             self.crypto_active = True
-        except ImportError:
+        except Exception:
             self.crypto_active = False
         
         # History
@@ -65,7 +67,6 @@ class NexusShell:
                 pulse = f"{(int(time.time()) % 100) / 100:.2f}" 
                 
                 level, status = self.pwr_core.get_status_string()
-                
                 if status == "CRITICAL":
                     batt_str = f"{self.BRASS}WARN:{level}%{self.RED}"
                 else:
@@ -95,7 +96,7 @@ class NexusShell:
         
         while self.active:
             try:
-                cmd = input(f"{self.RED}>> {self.RESET}").strip() # Case sensitive input for crypto
+                cmd = input(f"{self.RED}>> {self.RESET}").strip()
                 cmd_lower = cmd.lower()
                 
                 with self.lock:
@@ -109,25 +110,28 @@ class NexusShell:
                         print(f"{self.SILVER}>> CORE:   {self.sys_core.__class__.__name__}{self.RESET}")
                         lvl, st = self.pwr_core.get_status_string()
                         print(f"{self.SILVER}>> POWER:  {lvl}% ({st}){self.RESET}")
-                        # Check Crypto
-                        c_status = "ACTIVE" if self.crypto_active else "MISSING LIB"
+                        c_status = "ACTIVE" if self.crypto_active else "MISSING"
                         print(f"{self.SILVER}>> CRYPTO: {c_status}{self.RESET}")
 
-                    # [NEW] Encryption Commands
+                    # [NEW] Project TAME
+                    elif cmd_lower == "tame":
+                        jp, en, ver = self.talon_eng.get_banner()
+                        print(f"\n{self.RED}{jp} {self.SILVER}| {self.BRASS}{en}{self.RESET}")
+                        print(f"{self.SILVER}   {ver}{self.RESET}")
+                        print(f"{self.SILVER}   [!] Modules Pending Initialization{self.RESET}")
+
                     elif cmd_lower.startswith("enc "):
                         if not self.crypto_active:
-                            print(f"\n{self.RED}>> ERROR: Cryptography module missing.{self.RESET}")
+                            print(f"\n{self.RED}>> ERROR: Crypto Missing.{self.RESET}")
                         else:
-                            payload = cmd[4:] # Preserve case
-                            token = self.birdsong.encrypt(payload)
+                            token = self.birdsong.encrypt(cmd[4:])
                             print(f"\n{self.SILVER}>> HASH: {self.GREEN}{token}{self.RESET}")
 
                     elif cmd_lower.startswith("dec "):
                         if not self.crypto_active:
-                            print(f"\n{self.RED}>> ERROR: Cryptography module missing.{self.RESET}")
+                            print(f"\n{self.RED}>> ERROR: Crypto Missing.{self.RESET}")
                         else:
-                            token = cmd[4:]
-                            clear = self.birdsong.decrypt(token)
+                            clear = self.birdsong.decrypt(cmd[4:])
                             if "ERR:" in clear:
                                 print(f"\n{self.RED}>> {clear}{self.RESET}")
                             else:
@@ -142,18 +146,18 @@ class NexusShell:
                     elif cmd_lower == "save":
                         changes = self.diplomat.get_status()
                         if not changes:
-                            print(f"\n{self.SILVER}>> LATTICE CLEAN. NOTHING TO SAVE.{self.RESET}")
+                            print(f"\n{self.SILVER}>> LATTICE CLEAN.{self.RESET}")
                         else:
                             print(f"\n{self.BRASS}>> CHANGES DETECTED:{self.RESET}")
-                            for c in changes:
-                                print(f"   {c}")
+                            for c in changes: print(f"   {c}")
 
                     elif cmd_lower == "help":
-                        print(f"\n{self.SILVER}cmds: sys, meteor, save, enc <txt>, dec <token>, salud{self.RESET}")
+                        print(f"\n{self.SILVER}cmds: sys, meteor, tame, enc, dec, save, salud{self.RESET}")
                         
                     elif cmd:
                         print(f"\n{self.RED}[!] UNKNOWN: {cmd}{self.RESET}")
                 
+                # Interactive Save
                 if cmd_lower == "save":
                     changes = self.diplomat.get_status()
                     if changes:
@@ -162,7 +166,7 @@ class NexusShell:
                             print(f"{self.SILVER}>> NEGOTIATING WITH THE VOID...{self.RESET}")
                             result = self.diplomat.execute_save(msg)
                             if result == "SECURE":
-                                print(f"{self.GREEN}>> SUCCESS. LATTICE SYNCED.{self.RESET}")
+                                print(f"{self.GREEN}>> SUCCESS.{self.RESET}")
                             else:
                                 print(f"{self.RED}>> ERROR: {result}{self.RESET}")
 
