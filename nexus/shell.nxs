@@ -8,7 +8,9 @@ from datetime import datetime
 
 # IMPORT TOMES
 from core import system
-from core import gitter  # [NEW] The Diplomat
+from core import gitter
+from core import power
+from core import birdsong  # [NEW]
 from meteor import station
 
 class NexusShell:
@@ -27,7 +29,15 @@ class NexusShell:
         # Initialize
         self.sys_core = system.AeonLattice()
         self.wx_station = station.WeatherStation()
-        self.diplomat = gitter.Diplomat() # [NEW]
+        self.diplomat = gitter.Diplomat()
+        self.pwr_core = power.PowerCore()
+        
+        # [NEW] Initialize Birdsong (Crypto)
+        try:
+            self.birdsong = birdsong.Birdsong()
+            self.crypto_active = True
+        except ImportError:
+            self.crypto_active = False
         
         # History
         self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
@@ -54,9 +64,12 @@ class NexusShell:
                 cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
                 pulse = f"{(int(time.time()) % 100) / 100:.2f}" 
                 
-                batt = 100 
-                if batt <= 21: batt_str = f"{self.BRASS}WARN:21%{self.RED}"
-                else: batt_str = "BAT:ON"
+                level, status = self.pwr_core.get_status_string()
+                
+                if status == "CRITICAL":
+                    batt_str = f"{self.BRASS}WARN:{level}%{self.RED}"
+                else:
+                    batt_str = f"BAT:{level}%"
 
                 header = (
                     f"{self.RED}┌──[ {self.CRIMSON}Æ-ON LATTICE{self.RED} ]──"
@@ -71,33 +84,62 @@ class NexusShell:
             time.sleep(1)
 
     def ignite(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        threading.Thread(target=self.render_header, daemon=True).start()
+        # HARD CLEAR
+        sys.stdout.write("\033[2J\033[3J\033[H")
+        sys.stdout.flush()
         
         print("\n" * 2)
         print(f"{self.SILVER}System Online. The Hawk has landed.{self.RESET}")
         
+        threading.Thread(target=self.render_header, daemon=True).start()
+        
         while self.active:
             try:
-                cmd = input(f"{self.RED}>> {self.RESET}").strip().lower()
+                cmd = input(f"{self.RED}>> {self.RESET}").strip() # Case sensitive input for crypto
+                cmd_lower = cmd.lower()
                 
                 with self.lock:
-                    if cmd in ["exit", "salud"]:
+                    if cmd_lower in ["exit", "salud"]:
                         self.active = False
+                        readline.write_history_file(self.hist_file)
                         return
                         
-                    elif cmd == "sys":
+                    elif cmd_lower == "sys":
                         print(f"\n{self.SILVER}>> KERNEL: OPTIMAL{self.RESET}")
                         print(f"{self.SILVER}>> CORE:   {self.sys_core.__class__.__name__}{self.RESET}")
+                        lvl, st = self.pwr_core.get_status_string()
+                        print(f"{self.SILVER}>> POWER:  {lvl}% ({st}){self.RESET}")
+                        # Check Crypto
+                        c_status = "ACTIVE" if self.crypto_active else "MISSING LIB"
+                        print(f"{self.SILVER}>> CRYPTO: {c_status}{self.RESET}")
+
+                    # [NEW] Encryption Commands
+                    elif cmd_lower.startswith("enc "):
+                        if not self.crypto_active:
+                            print(f"\n{self.RED}>> ERROR: Cryptography module missing.{self.RESET}")
+                        else:
+                            payload = cmd[4:] # Preserve case
+                            token = self.birdsong.encrypt(payload)
+                            print(f"\n{self.SILVER}>> HASH: {self.GREEN}{token}{self.RESET}")
+
+                    elif cmd_lower.startswith("dec "):
+                        if not self.crypto_active:
+                            print(f"\n{self.RED}>> ERROR: Cryptography module missing.{self.RESET}")
+                        else:
+                            token = cmd[4:]
+                            clear = self.birdsong.decrypt(token)
+                            if "ERR:" in clear:
+                                print(f"\n{self.RED}>> {clear}{self.RESET}")
+                            else:
+                                print(f"\n{self.SILVER}>> CLEAR: {self.BRASS}{clear}{self.RESET}")
                     
-                    elif cmd in ["meteor", "metar", "slap"]:
+                    elif cmd_lower in ["meteor", "metar", "slap"]:
                         print(f"\n{self.BRASS}>> SCANNING ATMOSPHERE...{self.RESET}")
                         data = self.wx_station.slap_data()
                         sys.stdout.write("\033[1A\033[2K") 
                         print(f"{self.SILVER}>> {data}{self.RESET}")
                         
-                    elif cmd == "save":
-                        # [NEW] The Diplomat Protocol
+                    elif cmd_lower == "save":
                         changes = self.diplomat.get_status()
                         if not changes:
                             print(f"\n{self.SILVER}>> LATTICE CLEAN. NOTHING TO SAVE.{self.RESET}")
@@ -105,21 +147,14 @@ class NexusShell:
                             print(f"\n{self.BRASS}>> CHANGES DETECTED:{self.RESET}")
                             for c in changes:
                                 print(f"   {c}")
-                            
-                            # Ask for commit message (using input here is tricky due to threads)
-                            # For safety in this version, we pause the header update logic implicitly
-                            # by doing a blocking input in the main loop.
-                            pass # Just a marker, the input below handles it.
 
-                    elif cmd == "help":
-                        print(f"\n{self.SILVER}cmds: sys, meteor, save, salud{self.RESET}")
+                    elif cmd_lower == "help":
+                        print(f"\n{self.SILVER}cmds: sys, meteor, save, enc <txt>, dec <token>, salud{self.RESET}")
                         
                     elif cmd:
                         print(f"\n{self.RED}[!] UNKNOWN: {cmd}{self.RESET}")
                 
-                # [INTERACTIVE SAVE LOGIC]
-                # We handle the 'save' input OUTSIDE the lock to allow typing
-                if cmd == "save":
+                if cmd_lower == "save":
                     changes = self.diplomat.get_status()
                     if changes:
                         msg = input(f"{self.CRIMSON}>> COMMIT MSG: {self.RESET}").strip()

@@ -1,0 +1,51 @@
+import os
+import json
+import subprocess
+import shutil
+
+class PowerCore:
+    def __init__(self):
+        self.path = "/sys/class/power_supply/battery/capacity"
+
+    def get_level(self):
+        """
+        Priority 1: Termux API (Most reliable on Android)
+        Priority 2: Kernel Read (Fallback)
+        Priority 3: Mock (100)
+        """
+        # 1. TRY TERMUX API
+        if shutil.which("termux-battery-status"):
+            try:
+                # Timeout set to 2s to prevent UI lag
+                result = subprocess.run(
+                    ["termux-battery-status"], 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=2
+                )
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    return int(data.get("percentage", 100))
+            except Exception:
+                pass
+
+        # 2. TRY KERNEL READ (Legacy/Root)
+        try:
+            if os.path.exists(self.path):
+                with open(self.path, "r") as f:
+                    return int(f.read().strip())
+        except:
+            pass
+
+        # 3. FALLBACK
+        return 100
+
+    def get_status_string(self):
+        level = self.get_level()
+        # [STANDARD] Threshold set to 8%
+        if level <= 8:
+            return level, "CRITICAL"
+        elif level < 50:
+            return level, "LOW"
+        else:
+            return level, "OPTIMAL"

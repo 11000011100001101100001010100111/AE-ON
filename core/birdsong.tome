@@ -1,47 +1,44 @@
 import os
-import struct
+import base64
 
-# Æ-ON | D.A.T.A. Protocol
-# Structured Artifact Composer [BIRDSONG_PROTOCOL]
+# [SAFEGUARD] Try to import, disable if missing
+try:
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    LIB_AVAILABLE = True
+except ImportError:
+    LIB_AVAILABLE = False
+    Fernet = None
 
-class AvianComposer:
-    def __init__(self, root_path):
-        self.chamber = os.path.join(root_path, "birdsong")
-        if not os.path.exists(self.chamber):
-            os.makedirs(self.chamber)
+class Birdsong:
+    def __init__(self):
+        if not LIB_AVAILABLE:
+            raise ImportError("Cryptography library not found.")
+            
+        self.key_file = os.path.join(os.path.expanduser("~"), ".aeon_key")
+        self.key = self._load_or_create_key()
+        self.cipher = Fernet(self.key)
 
-    def compose(self, composer_id, user_id, gate_freq, txrx_payload):
-        """
-        Assembles the 4-Part 'Singable' Artifact.
-        Structure: [COMPOSER] [USER] [SILENCE] [TXRX]
-        """
-        # 1. COMPOSER (4 Bytes) - Origin System ID
-        part_1 = composer_id[:4].encode('utf-8').ljust(4, b'\x00')
-        
-        # 2. USER (4 Bytes) - Identity/Operator
-        part_2 = user_id[:4].encode('utf-8').ljust(4, b'\x00')
-        
-        # 3. SILENCE (2 Bytes) - The Active Void
-        # This is the "Noise Gate" or Carrier Frequency (e.g., 118 for WNT)
-        # It defines the "Bistream Opportunity" range.
-        part_3 = struct.pack(">H", int(gate_freq))
-        
-        # 4. TXRX (Variable) - The Payload
-        # "Singable" constraint: Keep it lightweight.
-        part_4 = str(txrx_payload).encode('utf-8')[:16]
-        
-        return part_1 + part_2 + part_3 + part_4
+    def _load_or_create_key(self):
+        if os.path.exists(self.key_file):
+            with open(self.key_file, "rb") as f:
+                return f.read()
+        else:
+            key = Fernet.generate_key()
+            with open(self.key_file, "wb") as f:
+                f.write(key)
+            return key
 
-    def release_bird(self, filename_uid, song_data):
-        """
-        Releases the .song artifact into the DMZ.
-        """
-        filename = f"{filename_uid}.song"
-        filepath = os.path.join(self.chamber, filename)
-        
+    def encrypt(self, raw_data):
+        if not raw_data: return ""
+        token = self.cipher.encrypt(raw_data.encode())
+        return token.decode()
+
+    def decrypt(self, token):
+        if not token: return ""
         try:
-            with open(filepath, "wb") as f:
-                f.write(song_data)
-            return filepath
-        except Exception as e:
-            return f"ERROR: {e}"
+            raw = self.cipher.decrypt(token.encode())
+            return raw.decode()
+        except Exception:
+            return "ERR:INVALID_TOKEN"
