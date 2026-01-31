@@ -1,101 +1,104 @@
-import curses
-import time
+import sys
 import os
-import struct
+import time
+import threading
+import readline
+import atexit
+from datetime import datetime
 
-# Æ-ON | D.A.T.A. Protocol
-# Visual Interface Shell [NEXUS_STRATUM v0.2]
+# IMPORT TOMES
+from core import system
+from meteor import station
 
-def ignite(lattice):
-    curses.wrapper(_main_loop, lattice)
-
-def _scan_dmz(root_path):
-    """
-    Scans birdsong/ for the most recent artifact.
-    Returns (UID, GateFreq) or None.
-    """
-    chamber = os.path.join(root_path, "birdsong")
-    if not os.path.exists(chamber):
-        return "NO_CHAMBER", 0
-
-    files = [f for f in os.listdir(chamber) if f.endswith('.song')]
-    if not files:
-        return "SILENCE", 0
-    
-    # Get latest file
-    latest_file = max([os.path.join(chamber, f) for f in files], key=os.path.getctime)
-    filename = os.path.basename(latest_file)
-    uid = filename.replace(".song", "")
-    
-    # Parse Gate Freq (Bytes 9-10 are Silence/Gate)
-    try:
-        with open(latest_file, "rb") as f:
-            data = f.read()
-            # Structure: [4:Composer][4:User][2:Gate][Variable:Payload]
-            if len(data) >= 10:
-                gate_bytes = data[8:10]
-                gate_freq = struct.unpack(">H", gate_bytes)[0]
-                return uid, gate_freq
-    except:
-        pass
+class NexusShell:
+    def __init__(self):
+        self.active = True
+        self.lock = threading.Lock()
         
-    return uid, "??"
-
-def _main_loop(stdscr, lattice):
-    curses.start_color()
-    curses.use_default_colors()
-    curses.curs_set(0)
-
-    # PALETTE: 1=Crimson, 2=Silver, 3=Brass
-    curses.init_pair(1, curses.COLOR_RED, -1)
-    curses.init_pair(2, curses.COLOR_WHITE, -1)
-    curses.init_pair(3, curses.COLOR_YELLOW, -1)
-
-    while True:
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-
-        # 1. ACQUIRE DATA
-        vitals = lattice.check_vitals()
-        atomic_time = lattice.get_atomic_time()
-        identity = lattice.identity.get("designation", "UNKNOWN")
+        # Colors
+        self.RED = "\033[31m"
+        self.SILVER = "\033[90m"
+        self.BRASS = "\033[33m"
+        self.RESET = "\033[0m"
+        self.CRIMSON = "\033[91m"
         
-        # 2. SCAN BIRDSONG DMZ
-        last_chirp, gate_freq = _scan_dmz(lattice.root_path)
-
-        # 3. RENDER HEADER (Crimson)
-        header = f"Æ-ON | {identity} | {atomic_time}"
-        stdscr.attron(curses.color_pair(1) | curses.A_BOLD)
-        stdscr.addstr(0, 1, header)
-        stdscr.attroff(curses.color_pair(1) | curses.A_BOLD)
+        # Initialize
+        self.sys_core = system.AeonLattice()
+        self.wx_station = station.WeatherStation()
         
-        stdscr.attron(curses.color_pair(2))
-        stdscr.hline(1, 0, curses.ACS_HLINE, w)
-        stdscr.attroff(curses.color_pair(2))
-
-        # 4. RENDER VITALS (Silver)
-        bat_msg = f"ENERGY: {vitals.get('battery', '??')}%"
-        status_msg = vitals.get('msg', 'NOMINAL')
-        color = curses.color_pair(1) if vitals.get('alert') == 'CRITICAL' else curses.color_pair(2)
-
-        stdscr.addstr(3, 1, bat_msg, color)
-        stdscr.addstr(3, 20, f"STATUS: {status_msg}", color)
-
-        # 5. RENDER BIRDSONG DATA (Brass)
-        # This is the "Ear" of the Nexus
-        stdscr.attron(curses.color_pair(3))
-        stdscr.addstr(5, 1, ">> PHILOTIC MONITOR:")
-        stdscr.addstr(6, 4, f"LAST CHIRP: {last_chirp}")
-        stdscr.addstr(7, 4, f"GATE FREQ : {gate_freq} Hz")
-        stdscr.attroff(curses.color_pair(3))
-
-        # 6. FOOTER
-        stdscr.attron(curses.color_pair(2))
-        stdscr.addstr(h-2, 1, "[CTRL+C] HALT  |  [WAITING FOR SIGNAL]")
-        stdscr.attroff(curses.color_pair(2))
-
-        stdscr.refresh()
+        # History
+        self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
         try:
+            readline.read_history_file(self.hist_file)
+            readline.set_history_length(100)
+        except FileNotFoundError: pass
+        atexit.register(readline.write_history_file, self.hist_file)
+
+    def get_cursor_pos(self):
+        sys.stdout.write("\033[s") 
+
+    def restore_cursor_pos(self):
+        sys.stdout.write("\033[u")
+        sys.stdout.flush()
+
+    def render_header(self):
+        while self.active:
+            with self.lock:
+                self.get_cursor_pos()
+                sys.stdout.write("\033[H")
+                
+                now = datetime.now()
+                cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
+                pulse = f"{(int(time.time()) % 100) / 100:.2f}" 
+                
+                batt = 100 
+                if batt <= 21: batt_str = f"{self.BRASS}WARN:21%{self.RED}"
+                else: batt_str = "BAT:ON"
+
+                header = (
+                    f"{self.RED}┌──[ {self.CRIMSON}Æ-ON LATTICE{self.RED} ]──"
+                    f"─[ {self.SILVER}{cycle}{self.RED} ]──"
+                    f"─[ {self.BRASS}φ {pulse}{self.RED} ]──"
+                    f"─[ {self.SILVER}{batt_str}{self.RED} ]──┐{self.RESET}"
+                )
+                
+                sys.stdout.write("\033[2K")
+                sys.stdout.write(header + "\n")
+                self.restore_cursor_pos()
             time.sleep(1)
-        except KeyboardInterrupt:
-            break
+
+    def ignite(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        threading.Thread(target=self.render_header, daemon=True).start()
+        
+        print("\n" * 2)
+        print(f"{self.SILVER}System Online. The Hawk has landed.{self.RESET}")
+        
+        while self.active:
+            try:
+                cmd = input(f"{self.RED}>> {self.RESET}").strip().lower()
+                
+                with self.lock:
+                    if cmd in ["exit", "salud"]:
+                        self.active = False
+                        return
+                        
+                    elif cmd == "sys":
+                        print(f"\n{self.SILVER}>> KERNEL: OPTIMAL{self.RESET}")
+                        print(f"{self.SILVER}>> CORE:   {self.sys_core.__class__.__name__}{self.RESET}")
+                    
+                    elif cmd in ["meteor", "metar", "slap"]:
+                        print(f"\n{self.BRASS}>> SCANNING ATMOSPHERE...{self.RESET}")
+                        data = self.wx_station.slap_data()
+                        sys.stdout.write("\033[1A\033[2K") 
+                        print(f"{self.SILVER}>> {data}{self.RESET}")
+                    
+                    # [FIX] Added Help Command
+                    elif cmd == "help":
+                        print(f"\n{self.SILVER}cmds: sys, meteor, salud{self.RESET}")
+                        
+                    elif cmd:
+                        print(f"\n{self.RED}[!] UNKNOWN: {cmd}{self.RESET}")
+            except KeyboardInterrupt:
+                self.active = False
+                break

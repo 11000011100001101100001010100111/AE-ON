@@ -1,5 +1,7 @@
 import re
 import hashlib
+import sys
+import os
 
 # Æ-ON | D.A.T.A. Protocol
 # CycleDelta Cryptography [CORE_LOGIC]
@@ -7,11 +9,24 @@ import hashlib
 class DeltaCipher:
     def __init__(self):
         # 8-Char Unicode Base for Filenames
-        self.glyph_map = "ÆØÅß∂∆π∑Ωµ" 
+        self.glyph_map = "ÆØÅß∂∆π∑Ωµ"
+        
+        # LOAD PRIVATE SALT
+        # We look for refract.gem in the root directory
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(current_dir)
+            sys.path.append(root_dir)
+            import refract
+            self.salt = refract.USER_SALT
+        except ImportError:
+            print("[!] WARNING: REFRACT.GEM MISSING. USING INSECURE DEFAULT.")
+            self.salt = "PUBLIC_DEFAULT"
 
     def compute_delta(self, atomic_time_str):
         """
         Parses 'Zn[30].30.54.6' to calculate the shifting Delta.
+        This remains PUBLIC math (Time is universal).
         """
         pattern = r"\[(\d+)\]\.(\d+)\.([\d\.]+)"
         match = re.search(pattern, atomic_time_str)
@@ -22,15 +37,18 @@ class DeltaCipher:
         day_of_year = int(match.group(2))
         cycle_float = float(match.group(3))
 
-        # The Delta: A shifting value based on Time/Matter
         return (atomic_no * cycle_float) + day_of_year
 
     def generate_uid(self, delta_val):
         """
         Generates the [8-Unicode-Chars].song filename.
+        NOW SECURED: Mixes Delta + Private Salt.
         """
-        # Hash the delta to get entropy
-        raw_hash = hashlib.sha256(str(delta_val).encode()).hexdigest()
+        # The combination of Time (Delta) and Soul (Salt)
+        payload = f"{delta_val}:{self.salt}"
+        
+        # Hash the payload
+        raw_hash = hashlib.sha256(payload.encode()).hexdigest()
         
         # Map first 8 nibbles to our Glyph Map
         uid = ""

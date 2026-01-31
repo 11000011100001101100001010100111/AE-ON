@@ -1,0 +1,43 @@
+import os
+import sys
+import subprocess
+from datetime import datetime
+
+class WeatherStation:
+    def __init__(self):
+        # [FIX] Use '+' for URL safety (replaces space)
+        self.location = "Niagara+Falls" 
+        self.element = "Zn"
+        self.atomic = 30
+
+    def get_cycle_id(self):
+        now = datetime.now()
+        day = now.strftime("%j")
+        # Cycle Float (0.0 precision)
+        cycle_float = float(now.strftime("%H")) + (float(now.strftime("%M")) / 60)
+        return f"({self.element}[{self.atomic}].{day}.{cycle_float:.1f})"
+
+    def fetch_data(self):
+        try:
+            # wttr.in format: Condition, Temp, Wind, Pressure, Humidity
+            url = f"wttr.in/{self.location}?format=%C,+%t,+%w,+%P,+%h"
+            
+            # [FIX] timeout increased slightly to 4s
+            cmd = ["curl", "-s", url]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=4)
+            raw_wx = result.stdout.strip()
+            
+            # Validation: If we get HTML or Unknown, the link failed
+            if not raw_wx or "<" in raw_wx or "Unknown" in raw_wx:
+                return "NO_SIGNAL"
+                
+            return raw_wx
+            
+        except Exception:
+            return "OFFLINE"
+
+    def slap_data(self):
+        cycle = self.get_cycle_id()
+        wx = self.fetch_data()
+        return f"{cycle} {wx} // MONITORING"

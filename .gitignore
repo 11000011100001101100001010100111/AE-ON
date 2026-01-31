@@ -1,4 +1,4 @@
-refract.gem
-void/*
-logs/*
-birdsong/*.song
+__pycache__/
+*.pyc
+*.pyo
+.nexus_history

@@ -1,0 +1,8 @@
+# Æ-ON | D.A.T.A. Protocol
+# PRIVATE ENVIRONMENTAL VARIABLES [DO NOT COMMIT]
+
+# The "Soul" of the machine. Change this string to something unique.
+USER_SALT = "AEON_INIT_VECTOR_SIGMA_99"
+
+# Identity Matrix (Future Use)
+USER_DESIGNATION = "ROOT_ARCHITECT"
