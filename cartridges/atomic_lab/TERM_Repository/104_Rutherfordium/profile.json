@@ -1,0 +1,33 @@
+{
+    "name": "Rutherfordium",
+    "url": "https://en.wikipedia.org/wiki/Rutherfordium",
+    "summary": "Rutherfordium is a synthetic chemical element; it has symbol Rf and atomic number 104. It is named after physicist Ernest Rutherford. As a synthetic element, it is not found in nature and can only be made in a particle accelerator. It is radioactive; the most stable known isotope, 267Rf, has a half-life of about 48 minutes.",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/ˌrʌðərˈfɔːrdiəm/ ⓘ (RUDH-ər-FOR-dee-əm)",
+        "atomic_number_z": "104",
+        "group": "group 4",
+        "period": "period 7",
+        "block": "d-block",
+        "electron_configuration": "5f14 6d2 7s2",
+        "electrons_per_shell": "2, 8, 18, 32, 32, 10, 2",
+        "phase_at_stp": "solid (predicted)",
+        "melting_point": "2400 K (2100 °C, 3800 °F) (predicted)",
+        "boiling_point": "5800 K (5500 °C, 9900 °F) (predicted)",
+        "density_near_rt": "17 g/cm3 (predicted)",
+        "oxidation_states": "common: +4\n (+3), (+4)",
+        "ionization_energies": "1st: 580 kJ/mol 2nd: 1390 kJ/mol 3rd: 2300 kJ/mol (more) (all but first estimated)",
+        "atomic_radius": "empirical: 150 pm (estimated)",
+        "covalent_radius": "157 pm (estimated)",
+        "natural_occurrence": "synthetic",
+        "crystal_structure": "hexagonal close-packed (hcp)(predicted)",
+        "cas_number": "53850-36-5",
+        "naming": "after Ernest Rutherford",
+        "discovery": "Joint Institute for Nuclear Research and Lawrence Berkeley National Laboratory (1969)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n261mRf\n\nsynth\n\n1.2 min\n\nα\n\n257No\n\n\n263Rf\n\nsynth\n\n15 min\n\nSF\n\n–\n\n\n265Rf\n\nsynth\n\n1.3 min\n\nSF\n\n–\n\n\n267Rf\n\nsynth\n\n48 min\n\nSF\n\n–",
+        "261mrf": "synth",
+        "263rf": "synth",
+        "265rf": "synth",
+        "267rf": "synth"
+    }
+}

@@ -4,15 +4,17 @@ import time
 import threading
 import readline
 import atexit
+import subprocess
 from datetime import datetime
 
-# IMPORT TOMES
+# CORE
 from core import system
 from core import gitter
 from core import power
 from core import birdsong
-from core import talon     # [NEW]
+from core import refract
 from meteor import station
+from nexus import cart_loader
 
 class NexusShell:
     def __init__(self):
@@ -26,27 +28,30 @@ class NexusShell:
         self.RESET = "\033[0m"
         self.CRIMSON = "\033[91m"
         self.GREEN = "\033[32m"
+        self.CYAN = "\033[36m"
         
-        # Initialize
+        # Init
         self.sys_core = system.AeonLattice()
         self.wx_station = station.WeatherStation()
         self.diplomat = gitter.Diplomat()
         self.pwr_core = power.PowerCore()
-        self.talon_eng = talon.TalonEngine() # [NEW]
-
-        # Crypto Check
+        self.refractor = refract.GemRefract()
+        
         try:
             self.birdsong = birdsong.Birdsong()
             self.crypto_active = True
-        except Exception:
-            self.crypto_active = False
-        
+        except: self.crypto_active = False
+
+        # Init Cartridges
+        self.cart_loader = cart_loader.CartridgeLoader()
+        self.cartridges = self.cart_loader.scan_and_load()
+
         # History
         self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
         try:
             readline.read_history_file(self.hist_file)
             readline.set_history_length(100)
-        except FileNotFoundError: pass
+        except: pass
         atexit.register(readline.write_history_file, self.hist_file)
 
     def get_cursor_pos(self):
@@ -67,16 +72,17 @@ class NexusShell:
                 pulse = f"{(int(time.time()) % 100) / 100:.2f}" 
                 
                 level, status = self.pwr_core.get_status_string()
-                if status == "CRITICAL":
-                    batt_str = f"{self.BRASS}WARN:{level}%{self.RED}"
-                else:
-                    batt_str = f"BAT:{level}%"
+                batt_str = f"{self.BRASS}WARN:{level}%{self.RED}" if status == "CRITICAL" else f"BAT:{level}%"
+                
+                # Cart Indicator
+                cart_names = list(self.cartridges.keys())
+                cart_ind = f"[ {self.CYAN}C:{len(cart_names)}{self.RED} ]" if cart_names else ""
 
                 header = (
                     f"{self.RED}┌──[ {self.CRIMSON}Æ-ON LATTICE{self.RED} ]──"
                     f"─[ {self.SILVER}{cycle}{self.RED} ]──"
                     f"─[ {self.BRASS}φ {pulse}{self.RED} ]──"
-                    f"─[ {self.SILVER}{batt_str}{self.RED} ]──┐{self.RESET}"
+                    f"─[ {self.SILVER}{batt_str}{self.RED} ]──{cart_ind}──┐{self.RESET}"
                 )
                 
                 sys.stdout.write("\033[2K")
@@ -85,90 +91,94 @@ class NexusShell:
             time.sleep(1)
 
     def ignite(self):
-        # HARD CLEAR
         sys.stdout.write("\033[2J\033[3J\033[H")
         sys.stdout.flush()
-        
         print("\n" * 2)
         print(f"{self.SILVER}System Online. The Hawk has landed.{self.RESET}")
         
+        if self.cartridges:
+            print(f"{self.CYAN}>> CARTRIDGES MOUNTED: {', '.join(self.cartridges.keys())}{self.RESET}")
+
         threading.Thread(target=self.render_header, daemon=True).start()
         
         while self.active:
             try:
-                cmd = input(f"{self.RED}>> {self.RESET}").strip()
-                cmd_lower = cmd.lower()
+                cmd_raw = input(f"{self.RED}>> {self.RESET}").strip()
+                cmd_parts = cmd_raw.split(" ")
+                cmd_lower = cmd_parts[0].lower()
                 
                 with self.lock:
                     if cmd_lower in ["exit", "salud"]:
                         self.active = False
-                        readline.write_history_file(self.hist_file)
                         return
+                    
+                    # [NEW] CYCLE (Reboot/Respawn)
+                    elif cmd_lower in ["cycle", "reboot"]:
+                        print(f"\n{self.BRASS}>> CYCLING SYSTEM...{self.RESET}")
+                        self.active = False
+                        # Exec replaces current process with new one
+                        os.execv(sys.executable, ['python', 'main.py'])
                         
                     elif cmd_lower == "sys":
                         print(f"\n{self.SILVER}>> KERNEL: OPTIMAL{self.RESET}")
-                        print(f"{self.SILVER}>> CORE:   {self.sys_core.__class__.__name__}{self.RESET}")
-                        lvl, st = self.pwr_core.get_status_string()
-                        print(f"{self.SILVER}>> POWER:  {lvl}% ({st}){self.RESET}")
-                        c_status = "ACTIVE" if self.crypto_active else "MISSING"
-                        print(f"{self.SILVER}>> CRYPTO: {c_status}{self.RESET}")
+                        print(f"{self.SILVER}>> REFRACT:{self.GREEN} ACTIVE{self.RESET}")
+                        print(f"{self.SILVER}>> CARTS:  {len(self.cartridges)} mounted{self.RESET}")
 
-                    # [NEW] Project TAME
-                    elif cmd_lower == "tame":
-                        jp, en, ver = self.talon_eng.get_banner()
-                        print(f"\n{self.RED}{jp} {self.SILVER}| {self.BRASS}{en}{self.RESET}")
-                        print(f"{self.SILVER}   {ver}{self.RESET}")
-                        print(f"{self.SILVER}   [!] Modules Pending Initialization{self.RESET}")
+                    elif cmd_lower == "refract":
+                        print(f"\n{self.BRASS}>> GENERATING COGNITIVE SEED...{self.RESET}")
+                        sys.stdout.flush()
+                        self.refractor.generate_seed()
 
-                    elif cmd_lower.startswith("enc "):
-                        if not self.crypto_active:
-                            print(f"\n{self.RED}>> ERROR: Crypto Missing.{self.RESET}")
-                        else:
-                            token = self.birdsong.encrypt(cmd[4:])
-                            print(f"\n{self.SILVER}>> HASH: {self.GREEN}{token}{self.RESET}")
+                    elif cmd_lower == "signal":
+                        msg = " ".join(cmd_parts[1:])
+                        if msg:
+                            self.refractor.write_signal("ARCHX", msg)
+                            print(f"{self.GREEN}>> SIGNAL SENT.{self.RESET}")
 
-                    elif cmd_lower.startswith("dec "):
-                        if not self.crypto_active:
-                            print(f"\n{self.RED}>> ERROR: Crypto Missing.{self.RESET}")
-                        else:
-                            clear = self.birdsong.decrypt(cmd[4:])
-                            if "ERR:" in clear:
-                                print(f"\n{self.RED}>> {clear}{self.RESET}")
-                            else:
-                                print(f"\n{self.SILVER}>> CLEAR: {self.BRASS}{clear}{self.RESET}")
-                    
+                    elif cmd_lower == "link":
+                        print(f"\n{self.CYAN}>> NEURAL LINK:{self.RESET}")
+                        for l in self.refractor.read_link_tail(10): print(f"   {l}")
+
                     elif cmd_lower in ["meteor", "metar", "slap"]:
                         print(f"\n{self.BRASS}>> SCANNING ATMOSPHERE...{self.RESET}")
-                        data = self.wx_station.slap_data()
-                        sys.stdout.write("\033[1A\033[2K") 
-                        print(f"{self.SILVER}>> {data}{self.RESET}")
-                        
+                        print(f"{self.SILVER}>> {self.wx_station.slap_data()}{self.RESET}")
+
+                    elif cmd_lower in self.cartridges:
+                        # Change dir to cartridge folder so imports work
+                        # But restore after
+                        print(f"\n{self.CYAN}>> EXEC: {cmd_lower.upper()}{self.RESET}")
+                        try:
+                            # We don't change CWD in this thread, we rely on the shim to handle paths
+                            # or the sys.path append in loader.
+                            self.cartridges[cmd_lower].run(cmd_parts[1:])
+                        except Exception as e:
+                            print(f"{self.RED}>> CART ERROR: {e}{self.RESET}")
+
                     elif cmd_lower == "save":
                         changes = self.diplomat.get_status()
-                        if not changes:
-                            print(f"\n{self.SILVER}>> LATTICE CLEAN.{self.RESET}")
+                        if changes:
+                            print(f"\n{self.BRASS}>> CHANGES: {changes}{self.RESET}")
+                            msg = input(f"{self.CRIMSON}>> COMMIT MSG: {self.RESET}").strip()
+                            if msg:
+                                self.diplomat.execute_save(msg)
+                                print(f"{self.GREEN}>> SYNCED.{self.RESET}")
                         else:
-                            print(f"\n{self.BRASS}>> CHANGES DETECTED:{self.RESET}")
-                            for c in changes: print(f"   {c}")
+                            print(f"\n{self.SILVER}>> CLEAN.{self.RESET}")
 
+                    # [DYNAMIC HELP]
                     elif cmd_lower == "help":
-                        print(f"\n{self.SILVER}cmds: sys, meteor, tame, enc, dec, save, salud{self.RESET}")
+                        core_cmds = ["sys", "cycle", "meteor", "refract", "signal", "link", "save", "salud"]
+                        cart_cmds = list(self.cartridges.keys())
                         
-                    elif cmd:
-                        print(f"\n{self.RED}[!] UNKNOWN: {cmd}{self.RESET}")
-                
-                # Interactive Save
-                if cmd_lower == "save":
-                    changes = self.diplomat.get_status()
-                    if changes:
-                        msg = input(f"{self.CRIMSON}>> COMMIT MSG: {self.RESET}").strip()
-                        if msg:
-                            print(f"{self.SILVER}>> NEGOTIATING WITH THE VOID...{self.RESET}")
-                            result = self.diplomat.execute_save(msg)
-                            if result == "SECURE":
-                                print(f"{self.GREEN}>> SUCCESS.{self.RESET}")
-                            else:
-                                print(f"{self.RED}>> ERROR: {result}{self.RESET}")
+                        print(f"\n{self.SILVER}--- CORE COMMANDS ---{self.RESET}")
+                        print(f"{self.SILVER}{', '.join(core_cmds)}{self.RESET}")
+                        
+                        if cart_cmds:
+                            print(f"\n{self.CYAN}--- CARTRIDGES ---{self.RESET}")
+                            print(f"{self.CYAN}{', '.join(cart_cmds)}{self.RESET}")
+
+                    elif cmd_raw:
+                        print(f"\n{self.RED}[!] UNKNOWN: {cmd_lower}{self.RESET}")
 
             except KeyboardInterrupt:
                 self.active = False

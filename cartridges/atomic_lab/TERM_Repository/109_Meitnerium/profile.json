@@ -1,0 +1,33 @@
+{
+    "name": "Meitnerium",
+    "url": "https://en.wikipedia.org/wiki/Meitnerium",
+    "summary": "Meitnerium is a synthetic chemical element; it has symbol Mt and atomic number 109. It is an extremely radioactive synthetic element (not naturally occurring, but can be created in a laboratory). The most stable known isotope, meitnerium-278, has a half-life of 4.5 seconds, although the unconfirmed meitnerium-282 may have a longer half-life of 67 seconds. The element was first synthesized in August 1982 by the GSI Helmholtz Centre for Heavy Ion Research near Darmstadt, Germany, and it was named after the Austrian-Swedish nuclear physicist Lise Meitner in 1997.",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/maɪtˈnɪəriəm/ ⓘ(myte-NEER-ee-əm)/ˈmaɪtnəriəm/ ⓘ(MYTE-nər-ee-əm)",
+        "mass_number": "(data not decisive)",
+        "atomic_number_z": "109",
+        "group": "group 9",
+        "period": "period 7",
+        "block": "d-block",
+        "electron_configuration": "5f14 6d7 7s2 (predicted)",
+        "electrons_per_shell": "2, 8, 18, 32, 32, 15, 2 (predicted)",
+        "phase_at_stp": "solid (predicted)",
+        "density_near_rt": "27–28 g/cm3 (predicted)",
+        "oxidation_states": "common: (none)\n (+1), (+3), (+6)",
+        "ionization_energies": "1st: 800 kJ/mol 2nd: 1820 kJ/mol 3rd: 2900 kJ/mol (more) (all estimated)",
+        "atomic_radius": "empirical: 128 pm (predicted)",
+        "covalent_radius": "129 pm (estimated)",
+        "natural_occurrence": "synthetic",
+        "crystal_structure": "face-centered cubic (fcc)(predicted)",
+        "magnetic_ordering": "paramagnetic (predicted)",
+        "cas_number": "54038-01-6",
+        "naming": "after Lise Meitner",
+        "discovery": "Gesellschaft für Schwerionenforschung (1982)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n274Mt\n\nsynth\n\n0.64 s\n\nα\n\n270Bh\n\n\n276Mt\n\nsynth\n\n0.62 s\n\nα\n\n272Bh\n\n\n278Mt\n\nsynth\n\n4.5 s\n\nα\n\n274Bh\n\n\n282Mt\n\nsynth\n\n67 s?\n\nα\n\n278Bh",
+        "274mt": "synth",
+        "276mt": "synth",
+        "278mt": "synth",
+        "282mt": "synth"
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "name": "Tennessine",
+    "url": "https://en.wikipedia.org/wiki/Tennessine",
+    "summary": "Tennessine is a synthetic element; it has symbol Ts and atomic number 117. It has the second-highest atomic number, the joint-highest atomic mass of all known elements, and is the penultimate element of the 7th period of the periodic table. It is named after the U.S. state of Tennessee, where key research institutions involved in its discovery are located (however, the IUPAC says that the element is named after the \"region of Tennessee\").",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/ˈtɛnəsiːn/ ⓘ (TEN-ə-seen)",
+        "appearance": "semimetallic (predicted)",
+        "atomic_number_z": "117",
+        "group": "group 17 (halogens)",
+        "period": "period 7",
+        "block": "p-block",
+        "electron_configuration": "5f14 6d10 7s2 7p5 (predicted)",
+        "electrons_per_shell": "2, 8, 18, 32, 32, 18, 7 (predicted)",
+        "phase_at_stp": "solid (predicted)",
+        "melting_point": "623–823 K (350–550 °C, 662–1022 °F) (predicted)",
+        "boiling_point": "883 K (610 °C, 1130 °F) (predicted)",
+        "density_near_rt": "7.1–7.3 g/cm3 (extrapolated)",
+        "oxidation_states": "common: (none)\n (−1), (+1), (+3) (+5)",
+        "ionization_energies": "1st: 742.9 kJ/mol (predicted)2nd: 1435.4 kJ/mol (predicted)3rd: 2161.9 kJ/mol (predicted)(more)",
+        "atomic_radius": "empirical: 138 pm (predicted)",
+        "covalent_radius": "156–157 pm (extrapolated)",
+        "natural_occurrence": "synthetic",
+        "cas_number": "54101-14-3",
+        "naming": "after Tennessee region",
+        "discovery": "Joint Institute for Nuclear Research, Lawrence Livermore National Laboratory, Vanderbilt University and Oak Ridge National Laboratory (2010)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n293Ts\n\nsynth\n\n22 ms\n\nα\n\n289Mc\n\n\n294Ts\n\nsynth\n\n51 ms\n\nα\n\n290Mc",
+        "293ts": "synth",
+        "294ts": "synth"
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "name": "Oganesson",
+    "url": "https://en.wikipedia.org/wiki/Oganesson",
+    "summary": "Oganesson is a synthetic chemical element; it has symbol Og and atomic number 118. It was first synthesized in 2002 at the Joint Institute for Nuclear Research (JINR) in Dubna, near Moscow, Russia, by a joint team of Russian and American scientists. In December 2015, it was recognized as one of four new elements by the Joint Working Party of the international scientific bodies IUPAC and IUPAP. It was formally named on 28 November 2016. The name honors the nuclear physicist Yuri Oganessian, who played a leading role in the discovery of the heaviest elements in the periodic table.",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/ˌɒɡəˈnɛsɒn/ ⓘ(OG-ə-NESS-on)/ˌoʊɡəˈnɛsən/ ⓘ(OH-gə-NESS-ən)",
+        "appearance": "metallic (predicted)",
+        "atomic_number_z": "118",
+        "group": "group 18 (noble gases)",
+        "period": "period 7",
+        "block": "p-block",
+        "electron_configuration": "5f14 6d10 7s2 7p6 (predicted)",
+        "electrons_per_shell": "2, 8, 18, 32, 32, 18, 8 (predicted)",
+        "phase_at_stp": "solid (predicted)",
+        "melting_point": "325 ± 15 K (52 ± 15 °C, 125 ± 27 °F) (predicted)",
+        "boiling_point": "450 ± 10 K (177 ± 10 °C, 350 ± 18 °F) (predicted)",
+        "density_near_rt": "7.2 g/cm3 (solid, 319 K, calculated)",
+        "when_liquid_at_mp": "6.6 g/cm3 (liquid, 327 K, calculated)",
+        "oxidation_states": "common: (none)\n (−1), (+1), (+2), (+4), (+6)",
+        "ionization_energies": "1st: 860 kJ/mol (calculated)2nd: 1560 kJ/mol (calculated)",
+        "atomic_radius": "empirical: 152 pm (predicted)",
+        "covalent_radius": "157 pm (predicted)",
+        "natural_occurrence": "synthetic",
+        "crystal_structure": "face-centered cubic (fcc)(extrapolated)",
+        "cas_number": "54144-19-3",
+        "naming": "after Yuri Oganessian",
+        "prediction": "Hans Peter Jørgen Julius Thomsen (1895)",
+        "discovery": "Joint Institute for Nuclear Research and Lawrence Livermore National Laboratory (2002)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n294Og\n\nsynth\n\n0.7 ms\n\nα\n\n290Lv\n\n\nSF\n\n–",
+        "294og": "synth"
+    }
+}

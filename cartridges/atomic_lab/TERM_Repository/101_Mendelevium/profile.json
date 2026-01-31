@@ -1,0 +1,32 @@
+{
+    "name": "Mendelevium",
+    "url": "https://en.wikipedia.org/wiki/Mendelevium",
+    "summary": "Mendelevium is a synthetic chemical element; it has symbol Md (formerly Mv) and atomic number 101. A metallic radioactive transuranium element in the actinide series, it is the first element by atomic number that currently cannot be produced in macroscopic quantities by neutron bombardment of lighter elements. It is the thirteenth actinide, the ninth transuranic element, and the first transfermium; it is named after Dmitri Mendeleev, the father of the periodic table.",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/ˌmɛndəˈliːviəm/ ⓘ(MEN-də-LEE-vee-əm)/ˌmɛndəˈleɪviəm/ ⓘ(MEN-də-LAY-vee-əm)",
+        "atomic_number_z": "101",
+        "group": "f-block groups (no number)",
+        "period": "period 7",
+        "block": "f-block",
+        "electron_configuration": "5f13 7s2",
+        "electrons_per_shell": "2, 8, 18, 32, 31, 8, 2",
+        "phase_at_stp": "solid (predicted)",
+        "melting_point": "1100 K (800 °C, 1500 °F) (predicted)",
+        "density_near_rt": "10.3(7) g/cm3 (predicted)",
+        "oxidation_states": "common: +3\n+2",
+        "electronegativity": "Pauling scale: 1.3",
+        "ionization_energies": "1st: 636 kJ/mol",
+        "natural_occurrence": "synthetic",
+        "crystal_structure": "face-centered cubic (fcc)(predicted)",
+        "cas_number": "7440-11-1",
+        "naming": "after Dmitri Mendeleev",
+        "discovery": "Lawrence Berkeley National Laboratory (1955)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n256Md\n\nsynth\n\n77.7 min\n\nε\n\n256Fm\n\n\nα\n\n252Es\n\n\n257Md\n\nsynth\n\n5.52 h\n\nε\n\n257Fm\n\n\nα\n\n253Es\n\n\n258Md\n\nsynth\n\n51.6 d\n\nα\n\n254Es\n\n\n259Md\n\nsynth\n\n1.60 h\n\nSF\n\n–\n\n\n260Md\n\nsynth\n\n27.8 d\n\nSF\n\n–",
+        "256md": "synth",
+        "257md": "synth",
+        "258md": "synth",
+        "259md": "synth",
+        "260md": "synth"
+    }
+}

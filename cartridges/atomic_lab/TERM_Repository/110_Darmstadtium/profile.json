@@ -1,0 +1,29 @@
+{
+    "name": "Darmstadtium",
+    "url": "https://en.wikipedia.org/wiki/Darmstadtium",
+    "summary": "Darmstadtium is a synthetic chemical element; it has symbol Ds and atomic number 110. It is extremely radioactive: the most stable known isotope, darmstadtium-281, has a half-life of approximately 14 seconds. Darmstadtium was first created in November 1994 by the GSI Helmholtz Centre for Heavy Ion Research in Darmstadt, Germany, after which it was named.",
+    "atomic_mass": null,
+    "properties": {
+        "pronunciation": "/dɑːrmˈstætiəm/ ⓘ(darm-STAT-ee-əm)/dɑːrmˈʃtætiəm/ ⓘ(darm-SHTAT-ee-əm)",
+        "atomic_number_z": "110",
+        "group": "group 10",
+        "period": "period 7",
+        "block": "d-block",
+        "electron_configuration": "5f14 6d8 7s2 (predicted)",
+        "electrons_per_shell": "2, 8, 18, 32, 32, 16, 2 (predicted)",
+        "phase_at_stp": "solid (predicted)",
+        "density_near_rt": "26–27 g/cm3 (predicted)",
+        "oxidation_states": "common: (none)\n (+2), (+4), (+6)",
+        "ionization_energies": "1st: 960 kJ/mol 2nd: 1890 kJ/mol 3rd: 3030 kJ/mol (more) (all estimated)",
+        "atomic_radius": "empirical: 132 pm (predicted)",
+        "covalent_radius": "128 pm (estimated)",
+        "natural_occurrence": "synthetic",
+        "crystal_structure": "body-centered cubic (bcc)(predicted)",
+        "cas_number": "54083-77-1",
+        "naming": "after Darmstadt, Germany, where it was discovered",
+        "discovery": "Gesellschaft für Schwerionenforschung (1994)",
+        "main_isotopes": "Main isotopes\n\nDecay\n\n\nIsotope\n\nabun­dance\n\nhalf-life (t1/2)\n\nmode\n\npro­duct\n\n\n279Ds\n\nsynth\n\n0.2 s\n\nα10%\n\n275Hs\n\n\nSF90%\n\n–\n\n\n281Ds\n\nsynth\n\n14 s\n\nSF94%\n\n–\n\n\nα6%\n\n277Hs",
+        "279ds": "synth",
+        "281ds": "synth"
+    }
+}
