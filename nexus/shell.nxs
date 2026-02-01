@@ -4,10 +4,10 @@ import time
 import threading
 import readline
 import atexit
-import subprocess
+import shutil
 from datetime import datetime
 
-# CORE
+# CORE IMPORTS
 from core import system
 from core import gitter
 from core import power
@@ -21,165 +21,230 @@ class NexusShell:
         self.active = True
         self.lock = threading.Lock()
         
-        # Colors
+        # VISUAL DEFINITIONS (Explicit & Safe)
         self.RED = "\033[31m"
         self.SILVER = "\033[90m"
         self.BRASS = "\033[33m"
-        self.RESET = "\033[0m"
-        self.CRIMSON = "\033[91m"
-        self.GREEN = "\033[32m"
         self.CYAN = "\033[36m"
+        self.GREEN = "\033[32m"
+        self.CRIMSON = "\033[91m" 
+        self.RESET = "\033[0m"
         
-        # Init
+        # THE CHRONICLE (History Buffer)
+        self.chronicle = [] 
+        self.max_history = 500
+        self.slip_offset = 0   
+
+        # SYSTEMS INITIALIZATION
         self.sys_core = system.AeonLattice()
         self.wx_station = station.WeatherStation()
         self.diplomat = gitter.Diplomat()
         self.pwr_core = power.PowerCore()
         self.refractor = refract.GemRefract()
-        
+        self.cart_loader = cart_loader.CartridgeLoader()
+        self.cartridges = self.cart_loader.scan_and_load()
+
+        # CRYPTO CHECK
         try:
             self.birdsong = birdsong.Birdsong()
             self.crypto_active = True
         except: self.crypto_active = False
 
-        # Init Cartridges
-        self.cart_loader = cart_loader.CartridgeLoader()
-        self.cartridges = self.cart_loader.scan_and_load()
-
-        # History
+        # READLINE HISTORY
         self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
-        try:
-            readline.read_history_file(self.hist_file)
-            readline.set_history_length(100)
+        try: readline.read_history_file(self.hist_file)
         except: pass
         atexit.register(readline.write_history_file, self.hist_file)
 
-    def get_cursor_pos(self):
-        sys.stdout.write("\033[s") 
+    # --- CHRONO ENGINE ---
+    def log(self, text):
+        """Injects text into the Chronicle."""
+        lines = text.split('\n')
+        for line in lines:
+            if line.strip(): # Only log if line has content
+                self.chronicle.append(line)
+        if len(self.chronicle) > self.max_history:
+            self.chronicle = self.chronicle[-self.max_history:]
 
-    def restore_cursor_pos(self):
-        sys.stdout.write("\033[u")
-        sys.stdout.flush()
-
-    def render_header(self):
-        while self.active:
-            with self.lock:
-                self.get_cursor_pos()
-                sys.stdout.write("\033[H")
-                
-                now = datetime.now()
-                cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
-                pulse = f"{(int(time.time()) % 100) / 100:.2f}" 
-                
-                level, status = self.pwr_core.get_status_string()
-                batt_str = f"{self.BRASS}WARN:{level}%{self.RED}" if status == "CRITICAL" else f"BAT:{level}%"
-                
-                # Cart Indicator
-                cart_names = list(self.cartridges.keys())
-                cart_ind = f"[ {self.CYAN}C:{len(cart_names)}{self.RED} ]" if cart_names else ""
-
-                header = (
-                    f"{self.RED}┌──[ {self.CRIMSON}Æ-ON LATTICE{self.RED} ]──"
-                    f"─[ {self.SILVER}{cycle}{self.RED} ]──"
-                    f"─[ {self.BRASS}φ {pulse}{self.RED} ]──"
-                    f"─[ {self.SILVER}{batt_str}{self.RED} ]──{cart_ind}──┐{self.RESET}"
-                )
-                
-                sys.stdout.write("\033[2K")
-                sys.stdout.write(header + "\n")
-                self.restore_cursor_pos()
-            time.sleep(1)
-
-    def ignite(self):
-        sys.stdout.write("\033[2J\033[3J\033[H")
-        sys.stdout.flush()
-        print("\n" * 2)
-        print(f"{self.SILVER}System Online. The Hawk has landed.{self.RESET}")
+    def get_modulated_view(self, height):
+        """Returns visible slice with Void Padding."""
+        total = len(self.chronicle)
+        end = total - self.slip_offset
+        start = max(0, end - height)
+        slice_data = self.chronicle[start:end]
         
-        if self.cartridges:
-            print(f"{self.CYAN}>> CARTRIDGES MOUNTED: {', '.join(self.cartridges.keys())}{self.RESET}")
+        # Pad with None for "True Void"
+        while len(slice_data) < height:
+            slice_data.insert(0, None) 
+        return slice_data, start
 
-        threading.Thread(target=self.render_header, daemon=True).start()
-        
-        while self.active:
+    # --- RENDER ENGINE ---
+    def clear_screen(self):
+        sys.stdout.write("\033[2J\033[H")
+
+    def render_capsule(self):
+        """Draws the TUI."""
+        with self.lock:
+            self.clear_screen()
             try:
-                cmd_raw = input(f"{self.RED}>> {self.RESET}").strip()
+                cols, lines = shutil.get_terminal_size()
+                vp_h = max(5, lines - 7)
+            except: vp_h = 15
+            
+            # HEADER
+            now = datetime.now()
+            cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
+            lvl, status = self.pwr_core.get_status_string()
+            batt_col = self.RED if status == "CRITICAL" else self.SILVER
+            
+            mode_str = f"{self.GREEN}CAPSULE{self.RED}" if self.slip_offset == 0 else f"{self.BRASS}SLIP[-{self.slip_offset}]{self.RED}"
+            cart_str = f"C:{len(self.cartridges)}"
+            
+            header = (
+                f"{self.RED}┌──[ {self.BRASS}Æ-ON{self.RED} ]"
+                f"──[ {self.SILVER}{cycle}{self.RED} ]"
+                f"──[ {mode_str} ]"
+                f"──[ {batt_col}BAT:{lvl}%{self.RED} ]──[ {self.CYAN}{cart_str}{self.RED} ]──┐{self.RESET}"
+            )
+            sys.stdout.write(header + "\n\n")
+
+            # THE DECK
+            view_data, start_idx = self.get_modulated_view(vp_h)
+            none_count = view_data.count(None)
+
+            for i, line in enumerate(view_data):
+                if line is None:
+                    sys.stdout.write("\n")
+                else:
+                    abs_id = start_idx + (i - none_count)
+                    id_tag = f"{self.SILVER}[{abs_id:03}]{self.RESET}"
+                    
+                    color = self.SILVER
+                    if self.slip_offset == 0 and abs_id == len(self.chronicle) - 1:
+                        color = self.BRASS 
+                    
+                    term_w = shutil.get_terminal_size().columns
+                    clean_line = line[:term_w - 12]
+                    
+                    sys.stdout.write(f" {id_tag} {self.RED}│{self.RESET} {color}{clean_line}{self.RESET}\n")
+
+            sys.stdout.write(f"\n{self.RED}└──[ {self.CYAN}NEXUS{self.RED} ]{'─' * 20}┘{self.RESET}\n")
+            sys.stdout.flush()
+
+    # --- KINETIC HANDLER ---
+    def enter_kinetic_mode(self, func, *args):
+        """Pauses TUI, Clears Screen, Runs Function."""
+        # 1. Clear TUI
+        sys.stdout.write("\033[2J\033[H")
+        print(f"{self.BRASS}>> KINETIC MODE ACTIVE (Direct I/O){self.RESET}")
+        print("-" * 40)
+        
+        # 2. Run Function
+        try:
+            func(*args)
+        except Exception as e:
+            print(f"{self.RED}ERR: {e}{self.RESET}")
+            
+        # 3. Wait to Resume
+        print("-" * 40)
+        input(f"{self.SILVER}[PRESS ENTER TO RESUME CAPSULE]{self.RESET}")
+
+    # --- IGNITION ---
+    def ignite(self):
+        self.log(f"System Online. Shell Restored.")
+        
+        while self.active:
+            self.render_capsule()
+            try:
+                p_char = ">>" if self.slip_offset == 0 else "<<"
+                cmd_raw = input(f"{self.RED}{p_char} {self.RESET}").strip()
+                
                 cmd_parts = cmd_raw.split(" ")
                 cmd_lower = cmd_parts[0].lower()
-                
-                with self.lock:
-                    if cmd_lower in ["exit", "salud"]:
-                        self.active = False
-                        return
+
+                # NAVIGATION
+                if cmd_lower == "slip":
+                    try: 
+                        steps = int(cmd_parts[1]) if len(cmd_parts) > 1 else 10
+                        self.slip_offset = min(self.slip_offset + steps, len(self.chronicle) - 5)
+                    except: pass
+                    continue
+                elif cmd_lower == "push":
+                    try:
+                        steps = int(cmd_parts[1]) if len(cmd_parts) > 1 else 10
+                        self.slip_offset = max(self.slip_offset - steps, 0)
+                    except: pass
+                    continue
+                elif cmd_lower == "live":
+                    self.slip_offset = 0
+                    continue
+
+                if cmd_raw: self.log(f"> {cmd_raw.upper()}")
+
+                # CORE LOGIC
+                if cmd_lower in ["exit", "salud"]:
+                    self.active = False
                     
-                    # [NEW] CYCLE (Reboot/Respawn)
-                    elif cmd_lower in ["cycle", "reboot"]:
-                        print(f"\n{self.BRASS}>> CYCLING SYSTEM...{self.RESET}")
-                        self.active = False
-                        # Exec replaces current process with new one
-                        os.execv(sys.executable, ['python', 'main.py'])
-                        
-                    elif cmd_lower == "sys":
-                        print(f"\n{self.SILVER}>> KERNEL: OPTIMAL{self.RESET}")
-                        print(f"{self.SILVER}>> REFRACT:{self.GREEN} ACTIVE{self.RESET}")
-                        print(f"{self.SILVER}>> CARTS:  {len(self.cartridges)} mounted{self.RESET}")
+                elif cmd_lower in ["cycle", "reboot"]:
+                    self.log("CYCLING SYSTEM...")
+                    self.render_capsule()
+                    time.sleep(0.5)
+                    os.execv(sys.executable, ['python', 'main.py'])
+                    
+                elif cmd_lower == "sys":
+                    self.log(f"KERNEL: OPTIMAL")
+                    self.log(f"CARTS: {len(self.cartridges)}")
 
-                    elif cmd_lower == "refract":
-                        print(f"\n{self.BRASS}>> GENERATING COGNITIVE SEED...{self.RESET}")
-                        sys.stdout.flush()
-                        self.refractor.generate_seed()
-
-                    elif cmd_lower == "signal":
-                        msg = " ".join(cmd_parts[1:])
-                        if msg:
-                            self.refractor.write_signal("ARCHX", msg)
-                            print(f"{self.GREEN}>> SIGNAL SENT.{self.RESET}")
-
-                    elif cmd_lower == "link":
-                        print(f"\n{self.CYAN}>> NEURAL LINK:{self.RESET}")
-                        for l in self.refractor.read_link_tail(10): print(f"   {l}")
-
-                    elif cmd_lower in ["meteor", "metar", "slap"]:
-                        print(f"\n{self.BRASS}>> SCANNING ATMOSPHERE...{self.RESET}")
-                        print(f"{self.SILVER}>> {self.wx_station.slap_data()}{self.RESET}")
-
-                    elif cmd_lower in self.cartridges:
-                        # Change dir to cartridge folder so imports work
-                        # But restore after
-                        print(f"\n{self.CYAN}>> EXEC: {cmd_lower.upper()}{self.RESET}")
-                        try:
-                            # We don't change CWD in this thread, we rely on the shim to handle paths
-                            # or the sys.path append in loader.
-                            self.cartridges[cmd_lower].run(cmd_parts[1:])
-                        except Exception as e:
-                            print(f"{self.RED}>> CART ERROR: {e}{self.RESET}")
-
-                    elif cmd_lower == "save":
+                # SAVE (KINETIC)
+                elif cmd_lower == "save":
+                    def save_routine():
                         changes = self.diplomat.get_status()
                         if changes:
-                            print(f"\n{self.BRASS}>> CHANGES: {changes}{self.RESET}")
-                            msg = input(f"{self.CRIMSON}>> COMMIT MSG: {self.RESET}").strip()
+                            print("CHANGES DETECTED:")
+                            for c in changes: print(f"  {c}")
+                            print("")
+                            # Input Sanitation:
+                            sys.stdout.flush() 
+                            # self.CRIMSON is now guaranteed to exist
+                            msg = input(f"{self.CRIMSON}COMMIT MSG: {self.RESET}").strip()
                             if msg:
-                                self.diplomat.execute_save(msg)
-                                print(f"{self.GREEN}>> SYNCED.{self.RESET}")
+                                res = self.diplomat.execute_save(msg)
+                                print(f"SYNC: {res}")
+                                self.log(f"SYNC: {res}") 
                         else:
-                            print(f"\n{self.SILVER}>> CLEAN.{self.RESET}")
+                            print("LATTICE CLEAN.")
+                    self.enter_kinetic_mode(save_routine)
 
-                    # [DYNAMIC HELP]
-                    elif cmd_lower == "help":
-                        core_cmds = ["sys", "cycle", "meteor", "refract", "signal", "link", "save", "salud"]
-                        cart_cmds = list(self.cartridges.keys())
-                        
-                        print(f"\n{self.SILVER}--- CORE COMMANDS ---{self.RESET}")
-                        print(f"{self.SILVER}{', '.join(core_cmds)}{self.RESET}")
-                        
-                        if cart_cmds:
-                            print(f"\n{self.CYAN}--- CARTRIDGES ---{self.RESET}")
-                            print(f"{self.CYAN}{', '.join(cart_cmds)}{self.RESET}")
+                # REFRACT (KINETIC)
+                elif cmd_lower == "refract":
+                    self.enter_kinetic_mode(self.refractor.generate_seed)
 
-                    elif cmd_raw:
-                        print(f"\n{self.RED}[!] UNKNOWN: {cmd_lower}{self.RESET}")
+                # CARTRIDGES (KINETIC)
+                elif cmd_lower in self.cartridges:
+                    self.enter_kinetic_mode(self.cartridges[cmd_lower].run, cmd_parts[1:])
+
+                # QUICK COMMANDS (STAY IN CAPSULE)
+                elif cmd_lower == "signal":
+                    msg = " ".join(cmd_parts[1:])
+                    if msg:
+                        self.refractor.write_signal("ARCHX", msg)
+                        self.log(f"SIGNAL SENT.")
+                
+                elif cmd_lower == "link":
+                    self.log("NEURAL LINK:")
+                    for l in self.refractor.read_link_tail(4): self.log(f" {l}")
+
+                elif cmd_lower in ["meteor", "metar"]:
+                    self.log("SCANNING ATMOSPHERE...")
+                    wx = self.wx_station.slap_data()
+                    self.log(wx)
+
+                elif cmd_lower == "help":
+                    self.log("NAV: slip <N>, push <N>, live")
+                    self.log("SYS: sys, meteor, signal, link, refract, save")
+                
+                elif cmd_raw:
+                    self.log(f"UNKNOWN: {cmd_lower}")
 
             except KeyboardInterrupt:
                 self.active = False
-                break

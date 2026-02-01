@@ -1,0 +1,7 @@
+config.py
+secrets.py
+*.key
+*.env
+__pycache__/
+*.log
+*.tmp
