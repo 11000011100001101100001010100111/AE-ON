@@ -1,4 +1,10 @@
 import os
+
+# 1. DEFINE TARGET PATH (Relative to ~/AE-ON)
+target_path = os.path.join("nexus", "cart_loader.py")
+
+# 2. DEFINE CONTENT (CLIP 050)
+code = r'''import os
 import importlib.util
 import sys
 
@@ -69,3 +75,23 @@ class CartridgeLoader:
                     print(f"ERR LOADING {name}: {e}")
 
         return carts
+'''
+
+# 3. WRITE FILE
+print(f"[+] TARGET: {target_path}")
+try:
+    with open(target_path, "w") as f:
+        f.write(code)
+    print("    -> SUCCESS: Loader Updated.")
+except Exception as e:
+    print(f"    -> ERROR: {e}")
+    # Fallback to absolute path check
+    print("    -> RETRYING with absolute path...")
+    abs_path = os.path.abspath(target_path)
+    try:
+        with open(abs_path, "w") as f:
+            f.write(code)
+        print("    -> SUCCESS.")
+    except Exception as e2:
+        print(f"    -> CRITICAL FAIL: {e2}")
+

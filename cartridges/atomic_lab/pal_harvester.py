@@ -1,18 +1,10 @@
-# @://nsible/py_atomic_lab/harvester_deepnet [ENTRY VECTOR]
+# @://nsible/cartridges/atomic_lab/pal_harvester [REFRACTED]
 # -----------------------------------------------------------------------------
-# PY ATOMIC LAB v13.2 (DeepNet Harvester)
+# PY ATOMIC LAB v13.4 (DeepNet Harvester)
 # -----------------------------------------------------------------------------
-# Copyright (c) 2026 Æ§ Tech. All Rights Reserved.
-#
-# SYSTEM ARCHITECTURE:
-#   - Core: Python Requests / BeautifulSoup4
-#   - Visuals: Live Dashboard / Process Matrix
-#   - Function: Scrapes Wikipedia for element data
-#
-# UPDATES (v13.2):
-#   - HOOK: Added external run() method for bootloader integration.
-#   - REGEX: Improved cleaning to preserve mass ranges (e.g. [208.9]).
-#   - FIELD: Added dedicated 'atomic_mass' extraction.
+# ARCHITECTURE:
+#   - Pathing: Dynamic Absolute (AE-ON Compatible)
+#   - Logic: Standalone Class
 # -----------------------------------------------------------------------------
 
 import os
@@ -24,7 +16,6 @@ import time
 import sys
 
 # --- CONFIGURATION ---
-# ANSI Colors for the Harvester Dashboard
 C_RESET = "\033[0m"
 C_RED = "\033[38;5;196m"
 C_BRASS = "\033[38;5;220m"
@@ -34,21 +25,23 @@ C_CLEAR = "\033[H\033[J"
 
 class TERM_Harvester:
     def __init__(self):
-        self.root_dir = "TERM_Repository"
+        # [FIX] Dynamic Absolute Pathing for AE-ON Integration
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.root_dir = os.path.join(self.base_dir, "TERM_Repository")
+        
         self.base_url = "https://en.wikipedia.org"
         self.master_list_url = "https://en.wikipedia.org/wiki/List_of_chemical_elements"
-        self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) TERM_Bot/13.0'}
+        self.headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) TERM_Bot/13.4'}
         self.states = {}
         self.total_elements = 118
         self.processed_count = 0
-        
-        # Ensure Repo Exists
-        if not os.path.exists(self.root_dir): 
+
+        # Ensure Repo Exists at correct location
+        if not os.path.exists(self.root_dir):
             os.makedirs(self.root_dir)
-        
+
         self.init_dashboard()
 
-    # --- v13 INTEGRATION HOOK ---
     def run(self):
         """External trigger for main.py and pal_core.py"""
         self.fetch_master_index()
@@ -76,12 +69,12 @@ class TERM_Harvester:
     def draw_dashboard(self, current_action="Initializing..."):
         sys.stdout.write(C_CLEAR)
         print(f"{C_RED}========================================{C_RESET}")
-        print(f"{C_BRASS}   TERM HARVESTER v13.0 | DEEPNET{C_RESET}")
+        print(f"{C_BRASS}   TERM HARVESTER v13.4 | DEEPNET{C_RESET}")
         print(f"{C_RED}========================================{C_RESET}")
         print(f" Status: {current_action}")
         print(f" Progress: [{self.processed_count}/{self.total_elements}]")
         print(f"{C_GREY}----------------------------------------{C_RESET}")
-        
+
         layout = [
             [1, 2],
             [3, 4, 5, 6, 7, 8, 9, 10],
@@ -94,27 +87,25 @@ class TERM_Harvester:
             [58,59,60,61,62,63,64,65,66,67,68,69,70,71],
             [90,91,92,93,94,95,96,97,98,99,100,101,102,103]
         ]
-        
+
         for row in layout:
             line = ""
             for z in row:
                 sym = self.element_map.get(z, '??')
                 state = self.states.get(z, 'pending')
-                
+
                 color = C_GREY
                 if state == 'working': color = C_BRASS
                 elif state == 'done': color = C_GREEN
                 elif state == 'error': color = C_RED
-                
+
                 line += f"{C_GREY}[{color}{sym:^3}{C_GREY}]{C_RESET} "
             print(line)
-            
         print(f"{C_RED}========================================{C_RESET}")
         sys.stdout.flush()
 
     def clean_text(self, text):
         if not text: return ""
-        # Improved Regex: Removes citations [1] but keeps ranges [208.9]
         text = re.sub(r'\[\s*(?:[a-zA-Z]+|[0-9]+)\s*\]', '', text)
         text = re.sub(r'\[note \d+\]', '', text)
         text = text.replace('\xa0', ' ').replace('\u200b', '')
@@ -130,9 +121,11 @@ class TERM_Harvester:
         if not response: return
 
         soup = BeautifulSoup(response.text, 'html.parser')
-        table = soup.find('table', {'class': 'wikitable'}) 
-        rows = table.find_all('tr')[1:] 
-        
+        table = soup.find('table', {'class': 'wikitable'})
+        if not table:
+             self.draw_dashboard("ERROR: Table not found")
+             return
+        rows = table.find_all('tr')[1:]
         self.draw_dashboard("Indexing Elements...")
 
         for row in rows:
@@ -146,24 +139,23 @@ class TERM_Harvester:
                 symbol = self.clean_text(cols[1].text)
                 name_tag = cols[2].find('a')
                 if not name_tag: continue
-                
+
                 name = self.clean_text(name_tag.text)
                 element_url = self.base_url + name_tag['href']
-                
                 dir_name = f"{atomic_num:03d}_{name}"
                 element_dir = os.path.join(self.root_dir, dir_name)
-                
-                if not os.path.exists(element_dir): 
+
+                if not os.path.exists(element_dir):
                     os.makedirs(element_dir)
 
                 self.states[atomic_num] = 'working'
                 self.draw_dashboard(f"Harvesting {name}...")
-                
+
                 success = self.update_profile(name, element_url, element_dir)
-                
+
                 self.states[atomic_num] = 'done' if success else 'error'
                 self.processed_count += 1
-                time.sleep(0.1) 
+                time.sleep(0.1)
 
             except Exception:
                 self.states[int(raw_z)] = 'error'
@@ -174,7 +166,7 @@ class TERM_Harvester:
     def update_profile(self, name, url, save_dir):
         response = self.safe_get(url)
         if not response: return False
-        
+
         soup = BeautifulSoup(response.text, 'html.parser')
         infobox = soup.find('table', {'class': 'infobox'})
         properties = {}
@@ -189,33 +181,32 @@ class TERM_Harvester:
                     key = raw_key.replace(" ", "_")
                     key = re.sub(r'[^a-z0-9_]', '', key)
                     val = self.clean_text(td.text)
-                    
                     if len(key) > 2 and len(val) > 0:
                          properties[key] = val
-                    
-                    # Dedicated Mass Capture
                     if "standard atomic weight" in raw_key or "atomic mass" in raw_key:
                         atomic_mass_found = val
 
-        # Summary Capture
         summary_text = "No description available."
         for p in soup.find_all('p'):
             txt = self.clean_text(p.text)
-            if len(txt) > 60: 
+            if len(txt) > 60:
                 summary_text = txt
                 break
 
         profile_data = {
-            "name": name, 
-            "url": url, 
+            "name": name,
+            "url": url,
             "summary": summary_text,
             "atomic_mass": atomic_mass_found,
             "properties": properties
         }
-        
         path = os.path.join(save_dir, "profile.json")
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(profile_data, f, indent=4, ensure_ascii=False)
         return True
+
+if __name__ == "__main__":
+    bot = TERM_Harvester()
+    bot.run()
 
 # @://nsible/end_transmission [0t-strict]

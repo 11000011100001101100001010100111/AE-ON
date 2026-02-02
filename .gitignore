@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 .nexus_history
+vault_archive.tar.gz
+llama.cpp/
+storage/

@@ -1,41 +1,20 @@
-import sys
-import os
-import time
-import threading
-import readline
-import atexit
-import shutil
+import sys, os, time, curses, io, re
 from datetime import datetime
-
-# CORE IMPORTS
-from core import system
-from core import gitter
-from core import power
-from core import birdsong
-from core import refract
+from contextlib import redirect_stdout
+from core import system, gitter, power, birdsong, refract
 from meteor import station
-from nexus import cart_loader
+from nexus import cart_loader, man
 
 class NexusShell:
     def __init__(self):
         self.active = True
-        self.lock = threading.Lock()
-        
-        # VISUAL DEFINITIONS (Explicit & Safe)
-        self.RED = "\033[31m"
-        self.SILVER = "\033[90m"
-        self.BRASS = "\033[33m"
-        self.CYAN = "\033[36m"
-        self.GREEN = "\033[32m"
-        self.CRIMSON = "\033[91m" 
-        self.RESET = "\033[0m"
-        
-        # THE CHRONICLE (History Buffer)
-        self.chronicle = [] 
+        self.chronicle = []
         self.max_history = 500
-        self.slip_offset = 0   
-
-        # SYSTEMS INITIALIZATION
+        self.slip_offset = 0
+        self.input_buffer = ""
+        self.dirty_deck = True
+        
+        # SYSTEMS
         self.sys_core = system.AeonLattice()
         self.wx_station = station.WeatherStation()
         self.diplomat = gitter.Diplomat()
@@ -43,208 +22,235 @@ class NexusShell:
         self.refractor = refract.GemRefract()
         self.cart_loader = cart_loader.CartridgeLoader()
         self.cartridges = self.cart_loader.scan_and_load()
-
-        # CRYPTO CHECK
-        try:
-            self.birdsong = birdsong.Birdsong()
-            self.crypto_active = True
+        
+        try: self.birdsong = birdsong.Birdsong(); self.crypto_active = True
         except: self.crypto_active = False
 
-        # READLINE HISTORY
-        self.hist_file = os.path.join(os.path.expanduser("~"), ".nexus_history")
-        try: readline.read_history_file(self.hist_file)
-        except: pass
-        atexit.register(readline.write_history_file, self.hist_file)
+        self.ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
-    # --- CHRONO ENGINE ---
-    def log(self, text):
-        """Injects text into the Chronicle."""
-        lines = text.split('\n')
-        for line in lines:
-            if line.strip(): # Only log if line has content
-                self.chronicle.append(line)
+    def strip_ansi(self, text):
+        return self.ansi_escape.sub('', text)
+
+    def log(self, text, force_draw=False):
+        clean_text = self.strip_ansi(str(text))
+        clean_text = clean_text.replace('\t', '  ')
+        for line in clean_text.split('\n'):
+            self.chronicle.append(line)
         if len(self.chronicle) > self.max_history:
             self.chronicle = self.chronicle[-self.max_history:]
+        self.dirty_deck = True
+        
+        if force_draw and hasattr(self, 'stdscr'):
+            rows, cols = self.stdscr.getmaxyx()
+            self.draw_deck(self.stdscr, rows, cols)
+            self.stdscr.refresh()
 
     def get_modulated_view(self, height):
-        """Returns visible slice with Void Padding."""
         total = len(self.chronicle)
         end = total - self.slip_offset
         start = max(0, end - height)
-        slice_data = self.chronicle[start:end]
+        return self.chronicle[start:end], start
+
+    def draw_header(self, stdscr, cols):
+        now = datetime.now()
+        cycle_delta = (time.time() % (42.34 * 60)) / 60.0
+        delta_str = f"φ {cycle_delta:05.2f}"
+        zn_cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
+        lvl, st = self.pwr_core.get_status_string()
         
-        # Pad with None for "True Void"
-        while len(slice_data) < height:
-            slice_data.insert(0, None) 
-        return slice_data, start
-
-    # --- RENDER ENGINE ---
-    def clear_screen(self):
-        sys.stdout.write("\033[2J\033[H")
-
-    def render_capsule(self):
-        """Draws the TUI."""
-        with self.lock:
-            self.clear_screen()
-            try:
-                cols, lines = shutil.get_terminal_size()
-                vp_h = max(5, lines - 7)
-            except: vp_h = 15
-            
-            # HEADER
-            now = datetime.now()
-            cycle = f"Zn[30].{now.strftime('%j')}.{now.strftime('%H%M')}"
-            lvl, status = self.pwr_core.get_status_string()
-            batt_col = self.RED if status == "CRITICAL" else self.SILVER
-            
-            mode_str = f"{self.GREEN}CAPSULE{self.RED}" if self.slip_offset == 0 else f"{self.BRASS}SLIP[-{self.slip_offset}]{self.RED}"
-            cart_str = f"C:{len(self.cartridges)}"
-            
-            header = (
-                f"{self.RED}┌──[ {self.BRASS}Æ-ON{self.RED} ]"
-                f"──[ {self.SILVER}{cycle}{self.RED} ]"
-                f"──[ {mode_str} ]"
-                f"──[ {batt_col}BAT:{lvl}%{self.RED} ]──[ {self.CYAN}{cart_str}{self.RED} ]──┐{self.RESET}"
-            )
-            sys.stdout.write(header + "\n\n")
-
-            # THE DECK
-            view_data, start_idx = self.get_modulated_view(vp_h)
-            none_count = view_data.count(None)
-
-            for i, line in enumerate(view_data):
-                if line is None:
-                    sys.stdout.write("\n")
-                else:
-                    abs_id = start_idx + (i - none_count)
-                    id_tag = f"{self.SILVER}[{abs_id:03}]{self.RESET}"
-                    
-                    color = self.SILVER
-                    if self.slip_offset == 0 and abs_id == len(self.chronicle) - 1:
-                        color = self.BRASS 
-                    
-                    term_w = shutil.get_terminal_size().columns
-                    clean_line = line[:term_w - 12]
-                    
-                    sys.stdout.write(f" {id_tag} {self.RED}│{self.RESET} {color}{clean_line}{self.RESET}\n")
-
-            sys.stdout.write(f"\n{self.RED}└──[ {self.CYAN}NEXUS{self.RED} ]{'─' * 20}┘{self.RESET}\n")
-            sys.stdout.flush()
-
-    # --- KINETIC HANDLER ---
-    def enter_kinetic_mode(self, func, *args):
-        """Pauses TUI, Clears Screen, Runs Function."""
-        # 1. Clear TUI
-        sys.stdout.write("\033[2J\033[H")
-        print(f"{self.BRASS}>> KINETIC MODE ACTIVE (Direct I/O){self.RESET}")
-        print("-" * 40)
-        
-        # 2. Run Function
         try:
-            func(*args)
-        except Exception as e:
-            print(f"{self.RED}ERR: {e}{self.RESET}")
-            
-        # 3. Wait to Resume
-        print("-" * 40)
-        input(f"{self.SILVER}[PRESS ENTER TO RESUME CAPSULE]{self.RESET}")
+            C_RED = curses.color_pair(1)
+            C_BRASS = curses.color_pair(2) | curses.A_BOLD
+            C_SILVER = curses.color_pair(3)
+            C_CYAN = curses.color_pair(4)
+            cart_str = f"C:{len(self.cartridges)}"
 
-    # --- IGNITION ---
-    def ignite(self):
-        self.log(f"System Online. Shell Restored.")
+            stdscr.move(0, 0); stdscr.clrtoeol()
+            stdscr.addstr("┌──[ ", C_RED); stdscr.addstr("Æ-ON", C_SILVER); stdscr.addstr(" ]", C_RED)
+            stdscr.addstr("──[ ", C_RED); stdscr.addstr(zn_cycle, C_BRASS); stdscr.addstr(" ]", C_RED)
+            stdscr.addstr("──[ ", C_RED); stdscr.addstr(delta_str, C_BRASS); stdscr.addstr(" ]", C_RED)
+            stdscr.addstr("──[ ", C_RED); stdscr.addstr(f"BAT:{lvl}%", C_RED if st == "CRITICAL" else C_SILVER); stdscr.addstr(" ]", C_RED)
+            stdscr.addstr("──[ ", C_RED); stdscr.addstr(cart_str, C_CYAN); stdscr.addstr(" ]──┐", C_RED)
+        except: pass
+
+    def draw_deck(self, stdscr, rows, cols):
+        stdscr.erase()
+        self.draw_header(stdscr, cols)
         
-        while self.active:
-            self.render_capsule()
+        ft_line = "─" * (cols - 12)
+        try:
+            stdscr.addstr(rows-2, 0, f"└──[ ", curses.color_pair(1))
+            stdscr.addstr("NEXUS", curses.color_pair(4))
+            stdscr.addstr(f" ]{ft_line}┘", curses.color_pair(1))
+        except: pass
+
+        prompt_char = ">>" if self.slip_offset == 0 else "<<"
+        try:
+            stdscr.addstr(rows-1, 0, f"{prompt_char} ", curses.color_pair(1))
+            stdscr.addstr(self.input_buffer, curses.color_pair(3))
+        except: pass
+
+        vp_height = rows - 5 
+        view_data, start_idx = self.get_modulated_view(vp_height)
+        start_row = 2
+        for i, line in enumerate(view_data):
+            if not line: continue
+            
+            abs_id = start_idx + i 
+            id_tag = f"[{abs_id:03}]"
+            color = curses.color_pair(3)
+            if self.slip_offset == 0 and i == len(view_data)-1: color = curses.color_pair(2)
+            
             try:
-                p_char = ">>" if self.slip_offset == 0 else "<<"
-                cmd_raw = input(f"{self.RED}{p_char} {self.RESET}").strip()
+                max_text_len = max(10, cols - len(id_tag) - 4)
+                clean_line = line[:max_text_len]
+                stdscr.addstr(start_row + i, 1, id_tag, curses.color_pair(3))
+                stdscr.addstr("│", curses.color_pair(1))
+                stdscr.addstr(f" {clean_line}", color)
+            except: pass
+
+    def capture_tool_output(self, func, *args):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try: func(*args)
+            except Exception as e: print(f"ERR: {e}")
+        self.log(f.getvalue())
+
+    def handle_command(self, cmd_raw):
+        # 1. SMART PARSING (Handle quotes or loose text)
+        cmd_raw = cmd_raw.strip()
+        if not cmd_raw: return
+        
+        parts = cmd_raw.split(" ")
+        cmd = parts[0].lower()
+        args = " ".join(parts[1:]) # Join rest of string (no quotes needed)
+        
+        self.log(f"> {cmd_raw.upper()}")
+
+        if cmd in ["exit", "salud"]: self.active = False
+        
+        # SCROLLING
+        elif cmd == "slip": self.slip_offset += int(parts[1]) if len(parts)>1 and parts[1].isdigit() else 10; self.dirty_deck = True
+        elif cmd == "push": self.slip_offset = max(0, self.slip_offset - (int(parts[1]) if len(parts)>1 and parts[1].isdigit() else 10)); self.dirty_deck = True
+        elif cmd == "live": self.slip_offset = 0; self.dirty_deck = True
+        
+        elif cmd == "sys":
+            self.log(f"KERNEL: OPTIMAL | CORE: AeonLattice")
+            self.log(f"CARTS:  {len(self.cartridges)}")
+        
+        # SMART SAVE (No "Clean" blocking, No quotes needed)
+        elif cmd == "save":
+            msg = args
+            if not msg:
+                # Fallback to Modal if no message provided
+                self.log("[?] MSG REQUIRED. ENTERING MODAL...")
+                self.dirty_deck = True; self.draw_deck(self.stdscr, *self.stdscr.getmaxyx()); self.stdscr.refresh()
+                msg = self.get_curses_input("MSG:")
+            
+            if msg:
+                # VISUAL FEEDBACK BEFORE BLOCKING
+                self.log(f"[!] SYNCING LATTICE :: '{msg}'...", force_draw=True)
                 
-                cmd_parts = cmd_raw.split(" ")
-                cmd_lower = cmd_parts[0].lower()
+                # Execute
+                try:
+                    res = self.diplomat.execute_save(msg)
+                    self.log(f"SYNC: {res}")
+                except Exception as e:
+                    self.log(f"SYNC ERR: {e}")
+            else:
+                self.log("ABORTED.")
+        
+        elif cmd == "meteor" or cmd == "slap":
+            self.log(self.wx_station.slap_data())
 
-                # NAVIGATION
-                if cmd_lower == "slip":
-                    try: 
-                        steps = int(cmd_parts[1]) if len(cmd_parts) > 1 else 10
-                        self.slip_offset = min(self.slip_offset + steps, len(self.chronicle) - 5)
-                    except: pass
-                    continue
-                elif cmd_lower == "push":
-                    try:
-                        steps = int(cmd_parts[1]) if len(cmd_parts) > 1 else 10
-                        self.slip_offset = max(self.slip_offset - steps, 0)
-                    except: pass
-                    continue
-                elif cmd_lower == "live":
-                    self.slip_offset = 0
-                    continue
+        elif cmd == "refract": 
+            self.capture_tool_output(self.refractor.generate_seed)
+            
+        elif cmd == "enc" and self.crypto_active: self.log(f"HASH: {self.birdsong.encrypt(args)}")
+        elif cmd == "dec" and self.crypto_active: self.log(f"CLEAR: {self.birdsong.decrypt(args)}")
 
-                if cmd_raw: self.log(f"> {cmd_raw.upper()}")
+        elif cmd == "signal":
+             self.refractor.write_signal("ARCHX", args); self.log("SENT.")
 
-                # CORE LOGIC
-                if cmd_lower in ["exit", "salud"]:
-                    self.active = False
-                    
-                elif cmd_lower in ["cycle", "reboot"]:
-                    self.log("CYCLING SYSTEM...")
-                    self.render_capsule()
-                    time.sleep(0.5)
-                    os.execv(sys.executable, ['python', 'main.py'])
-                    
-                elif cmd_lower == "sys":
-                    self.log(f"KERNEL: OPTIMAL")
-                    self.log(f"CARTS: {len(self.cartridges)}")
+        elif cmd == "help":
+             self.log("MANUALS INDEX:"); [self.log(f" - {c}") for c in self.cartridges]
+             
+        elif cmd in self.cartridges:
+             self.log(f"LAUNCHING {cmd.upper()}...", force_draw=True)
+             curses.endwin()
+             try:
+                 # Pass args as list if valid, else empty
+                 c_args = parts[1:] if len(parts) > 1 else []
+                 self.cartridges[cmd].run(c_args)
+                 input("\n[PRESS ENTER]")
+             except Exception as e: 
+                 print(f"CRITICAL FAULT: {e}")
+                 input("[ERR]")
+             self.stdscr = curses.initscr()
+             self.setup_colors()
 
-                # SAVE (KINETIC)
-                elif cmd_lower == "save":
-                    def save_routine():
-                        changes = self.diplomat.get_status()
-                        if changes:
-                            print("CHANGES DETECTED:")
-                            for c in changes: print(f"  {c}")
-                            print("")
-                            # Input Sanitation:
-                            sys.stdout.flush() 
-                            # self.CRIMSON is now guaranteed to exist
-                            msg = input(f"{self.CRIMSON}COMMIT MSG: {self.RESET}").strip()
-                            if msg:
-                                res = self.diplomat.execute_save(msg)
-                                print(f"SYNC: {res}")
-                                self.log(f"SYNC: {res}") 
-                        else:
-                            print("LATTICE CLEAN.")
-                    self.enter_kinetic_mode(save_routine)
+    def get_curses_input(self, prompt_text):
+        buffer = ""
+        rows, cols = self.stdscr.getmaxyx()
+        while True:
+            try:
+                stdscr = self.stdscr
+                stdscr.attron(curses.color_pair(2))
+                stdscr.move(rows-1, 0); stdscr.clrtoeol()
+                stdscr.addstr(f"{prompt_text} {buffer}")
+                stdscr.attroff(curses.color_pair(2))
+                stdscr.refresh()
+            except: pass
+            try: key = stdscr.getch()
+            except: key = -1
+            if key == 10 or key == 13: return buffer
+            elif key == 27: return None
+            elif key == curses.KEY_BACKSPACE or key == 127: buffer = buffer[:-1]
+            elif 32 <= key <= 126: buffer += chr(key)
+            time.sleep(0.01)
 
-                # REFRACT (KINETIC)
-                elif cmd_lower == "refract":
-                    self.enter_kinetic_mode(self.refractor.generate_seed)
+    def setup_colors(self):
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_RED, -1)
+        curses.init_pair(2, curses.COLOR_YELLOW, -1)
+        curses.init_pair(3, curses.COLOR_WHITE, -1)
+        curses.init_pair(4, curses.COLOR_CYAN, -1)
 
-                # CARTRIDGES (KINETIC)
-                elif cmd_lower in self.cartridges:
-                    self.enter_kinetic_mode(self.cartridges[cmd_lower].run, cmd_parts[1:])
+    def main_loop(self, stdscr):
+        self.stdscr = stdscr
+        self.setup_colors()
+        curses.curs_set(1)
+        stdscr.nodelay(True) 
+        stdscr.timeout(10)
+        self.log("System Online. Shell v2.2 (Edge).")
+        last_hum_time = 0
+        while self.active:
+            rows, cols = stdscr.getmaxyx()
+            if self.dirty_deck:
+                self.draw_deck(stdscr, rows, cols)
+                stdscr.refresh()
+                self.dirty_deck = False
+            elif time.time() - last_hum_time > 0.1:
+                self.draw_header(stdscr, cols)
+                try: stdscr.move(rows-1, len(self.input_buffer) + 3)
+                except: pass
+                stdscr.refresh()
+                last_hum_time = time.time()
+            try: key = stdscr.getch()
+            except: key = -1
+            if key != -1:
+                self.dirty_deck = True
+                if key == 10 or key == 13:
+                    self.handle_command(self.input_buffer.strip())
+                    self.input_buffer = ""
+                elif key == 27: self.active = False
+                elif key == curses.KEY_BACKSPACE or key == 127: self.input_buffer = self.input_buffer[:-1]
+                elif 32 <= key <= 126: self.input_buffer += chr(key)
 
-                # QUICK COMMANDS (STAY IN CAPSULE)
-                elif cmd_lower == "signal":
-                    msg = " ".join(cmd_parts[1:])
-                    if msg:
-                        self.refractor.write_signal("ARCHX", msg)
-                        self.log(f"SIGNAL SENT.")
-                
-                elif cmd_lower == "link":
-                    self.log("NEURAL LINK:")
-                    for l in self.refractor.read_link_tail(4): self.log(f" {l}")
+    def ignite(self):
+        curses.wrapper(self.main_loop)
 
-                elif cmd_lower in ["meteor", "metar"]:
-                    self.log("SCANNING ATMOSPHERE...")
-                    wx = self.wx_station.slap_data()
-                    self.log(wx)
-
-                elif cmd_lower == "help":
-                    self.log("NAV: slip <N>, push <N>, live")
-                    self.log("SYS: sys, meteor, signal, link, refract, save")
-                
-                elif cmd_raw:
-                    self.log(f"UNKNOWN: {cmd_lower}")
-
-            except KeyboardInterrupt:
-                self.active = False
+if __name__ == "__main__":
+    shell = NexusShell()
+    shell.ignite()
