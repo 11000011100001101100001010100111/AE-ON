@@ -5,3 +5,4 @@ __pycache__/
 vault_archive.tar.gz
 llama.cpp/
 storage/
+cartridges/talon/
